@@ -3,7 +3,10 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
+const base = process.env.GITHUB_PAGES ? '/-/' : '/'
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -13,14 +16,16 @@ export default defineConfig({
         name: 'アグリコラ スコア記録',
         short_name: 'アグリコラ点数',
         description: 'アグリコラの得点をボード写真とカード写真から記録するアプリ',
+        lang: 'ja',
         theme_color: '#7a3ee0',
         background_color: '#faf9f7',
         display: 'standalone',
-        start_url: '/',
+        start_url: base,
+        scope: base,
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: `${base}icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
+          { src: `${base}icons/icon-512.png`, sizes: '512x512', type: 'image/png' },
+          { src: `${base}icons/icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
