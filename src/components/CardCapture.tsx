@@ -1,24 +1,37 @@
 import { useRef, useState } from 'react';
 import type { CardType, PlayerCard } from '../domain/types';
 import { recognizeImage } from '../ocr/ocr';
-import { matchCardLines, type CardMatch } from '../ocr/cardMatch';
+import { matchEachLine } from '../ocr/cardMatch';
 import { allCards, upsertCard } from '../db/db';
 import { cropAndEnhance, fullImageRect, type CropRect } from '../ocr/preprocess';
+import { normalizeCardName } from '../lib/normalize';
 import ImageCropper from './ImageCropper';
 
 interface Props {
-  onAdd: (card: PlayerCard) => void;
+  onAddMany: (cards: PlayerCard[]) => void;
   onClose: () => void;
 }
 
-type Stage = 'capture' | 'cropping' | 'processing' | 'candidates' | 'manual';
+type Stage = 'capture' | 'cropping' | 'processing' | 'batch' | 'manual';
 
-export default function CardCapture({ onAdd, onClose }: Props) {
+interface BatchRow {
+  key: string;
+  originalText: string;
+  name: string;
+  type: CardType;
+  points: number;
+  matched: boolean;
+  include: boolean;
+}
+
+const MIN_LINE_LENGTH = 2;
+
+export default function CardCapture({ onAddMany, onClose }: Props) {
   const [stage, setStage] = useState<Stage>('capture');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [processedPreview, setProcessedPreview] = useState<string | null>(null);
   const [ocrLines, setOcrLines] = useState<string[]>([]);
-  const [candidates, setCandidates] = useState<CardMatch[]>([]);
+  const [batchRows, setBatchRows] = useState<BatchRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [manualName, setManualName] = useState('');
@@ -41,16 +54,29 @@ export default function CardCapture({ onAdd, onClose }: Props) {
       const blob = await cropAndEnhance(img, rect);
       setProcessedPreview(URL.createObjectURL(blob));
       const { lines } = await recognizeImage(blob, 'jpn');
+      const cleanLines = lines.filter((l) => normalizeCardName(l).length >= MIN_LINE_LENGTH);
       setOcrLines(lines);
-      const cards = await allCards();
-      const matches = matchCardLines(lines, cards);
-      setCandidates(matches);
-      if (matches.length === 0) {
+
+      if (cleanLines.length === 0) {
         setManualName(lines[0] ?? '');
         setStage('manual');
-      } else {
-        setStage('candidates');
+        return;
       }
+
+      const cards = await allCards();
+      const lineMatches = matchEachLine(cleanLines, cards);
+      setBatchRows(
+        lineMatches.map((lm, i) => ({
+          key: String(i),
+          originalText: lm.line,
+          name: lm.match ? lm.match.card.displayName : lm.line,
+          type: lm.match ? lm.match.card.type : 'occupation',
+          points: lm.match ? lm.match.card.points : 0,
+          matched: Boolean(lm.match),
+          include: true,
+        })),
+      );
+      setStage('batch');
     } catch (err) {
       console.error(err);
       setError('文字認識に失敗しました。手動で入力してください。');
@@ -67,31 +93,45 @@ export default function CardCapture({ onAdd, onClose }: Props) {
     runOcr(fullImageRect(img), img);
   }
 
-  function pickCandidate(m: CardMatch) {
-    onAdd({
-      cardId: m.card.id,
-      displayName: m.card.displayName,
-      type: m.card.type,
-      points: m.card.points,
-    });
-  }
-
-  function goManualFromCandidates() {
-    setManualName(ocrLines[0] ?? '');
-    setStage('manual');
-  }
-
   function retryCrop() {
     setError(null);
     setStage('cropping');
+  }
+
+  function updateRow(key: string, patch: Partial<BatchRow>) {
+    setBatchRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+
+  function removeRow(key: string) {
+    setBatchRows((prev) => prev.filter((r) => r.key !== key));
+  }
+
+  async function confirmBatch() {
+    const included = batchRows.filter((r) => r.include && r.name.trim());
+    if (included.length === 0) return;
+    const saved = await Promise.all(
+      included.map((r) =>
+        upsertCard({ displayName: r.name.trim(), type: r.type, points: r.points }),
+      ),
+    );
+    onAddMany(
+      saved.map((s) => ({
+        cardId: s.id,
+        displayName: s.displayName,
+        type: s.type,
+        points: s.points,
+      })),
+    );
   }
 
   async function saveManual() {
     const name = manualName.trim();
     if (!name) return;
     const saved = await upsertCard({ displayName: name, type: manualType, points: manualPoints });
-    onAdd({ cardId: saved.id, displayName: saved.displayName, type: saved.type, points: saved.points });
+    onAddMany([{ cardId: saved.id, displayName: saved.displayName, type: saved.type, points: saved.points }]);
   }
+
+  const includedCount = batchRows.filter((r) => r.include).length;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -108,6 +148,9 @@ export default function CardCapture({ onAdd, onClose }: Props) {
             <button className="btn btn-primary btn-block" onClick={() => fileRef.current?.click()}>
               📷 カードを撮影
             </button>
+            <p className="hint-text">
+              複数枚のカード名を並べて写しても、まとめて1枚の写真で読み取れます。
+            </p>
             <input
               ref={fileRef}
               type="file"
@@ -132,31 +175,70 @@ export default function CardCapture({ onAdd, onClose }: Props) {
           <ImageCropper imageUrl={photoUrl} onConfirm={handleCropConfirm} onSkip={handleCropSkip} />
         )}
 
-        {(stage === 'processing' || stage === 'candidates' || stage === 'manual') && processedPreview && (
+        {(stage === 'processing' || stage === 'batch' || stage === 'manual') && processedPreview && (
           <img className="card-photo-preview" src={processedPreview} alt="読み取り範囲" />
         )}
 
         {stage === 'processing' && <p className="hint-text">文字を読み取っています...</p>}
 
-        {stage === 'candidates' && (
-          <div className="candidates-stage">
+        {stage === 'batch' && (
+          <div className="batch-stage">
             {error && <p className="error-text">{error}</p>}
-            <p className="hint-text">読み取り結果と近いカードです。選んでください。</p>
-            <ul className="candidate-list">
-              {candidates.map((m) => (
-                <li key={m.card.id}>
-                  <button className="candidate-btn" onClick={() => pickCandidate(m)}>
-                    <span>{m.card.displayName}</span>
-                    <span className="candidate-points">{m.card.points}点</span>
-                  </button>
+            <p className="hint-text">
+              読み取れた行ごとにカードとして表示しています。名前・種類・得点を確認し、不要な行はチェックを外してください。
+            </p>
+            <ul className="batch-list">
+              {batchRows.map((row) => (
+                <li key={row.key} className={`batch-row ${row.include ? '' : 'excluded'}`}>
+                  <div className="batch-row-top">
+                    <label className="batch-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={row.include}
+                        onChange={(e) => updateRow(row.key, { include: e.target.checked })}
+                      />
+                      {row.matched && <span className="batch-matched-badge">DB一致</span>}
+                      <span className="batch-original-text">読取: 「{row.originalText}」</span>
+                    </label>
+                    <button className="btn btn-danger-ghost" onClick={() => removeRow(row.key)}>
+                      行を削除
+                    </button>
+                  </div>
+                  <div className="batch-row-fields">
+                    <input
+                      className="batch-name-input"
+                      value={row.name}
+                      onChange={(e) => updateRow(row.key, { name: e.target.value })}
+                      disabled={!row.include}
+                    />
+                    <select
+                      value={row.type}
+                      onChange={(e) => updateRow(row.key, { type: e.target.value as CardType })}
+                      disabled={!row.include}
+                    >
+                      <option value="occupation">職業</option>
+                      <option value="improvement">進歩</option>
+                    </select>
+                    <input
+                      type="number"
+                      className="batch-points-input"
+                      value={row.points}
+                      onChange={(e) => updateRow(row.key, { points: Number(e.target.value) || 0 })}
+                      disabled={!row.include}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>
             <button className="btn btn-ghost btn-block" onClick={retryCrop}>
               うまく読み取れない・範囲を選び直す
             </button>
-            <button className="btn btn-ghost btn-block" onClick={goManualFromCandidates}>
-              該当なし・手動で入力する
+            <button
+              className="btn btn-primary btn-block btn-large"
+              onClick={confirmBatch}
+              disabled={includedCount === 0}
+            >
+              チェックした{includedCount}件をまとめて追加
             </button>
           </div>
         )}

@@ -72,7 +72,7 @@ export default function ImageCropper({ imageUrl, onConfirm, onSkip }: Props) {
   return (
     <div className="cropper">
       <p className="hint-text">
-        カード名の部分だけを指でなぞって囲むと読み取り精度が上がります。
+        カード名の部分だけを指でなぞって囲むと読み取り精度が上がります。複数枚のカード名が並んでいる場合は、まとめて囲んでもOKです。
       </p>
       <div
         className="cropper-stage"

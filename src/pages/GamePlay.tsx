@@ -80,8 +80,8 @@ export default function GamePlay() {
 
       {showCapture && (
         <CardCapture
-          onAdd={(card) => {
-            addCard(activePlayer, card);
+          onAddMany={(cards) => {
+            cards.forEach((card) => addCard(activePlayer, card));
             setShowCapture(false);
           }}
           onClose={() => setShowCapture(false)}

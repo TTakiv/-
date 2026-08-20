@@ -7,13 +7,20 @@ export interface CardMatch {
   score: number; // 0 = perfect match, higher = worse
 }
 
+export interface LineMatch {
+  line: string;
+  match?: CardMatch;
+}
+
 /**
- * Given OCR text lines from a photographed card, find the best matching
- * card(s) already known in the local database. Lines are tried longest
- * first since the card title is usually the most prominent text.
+ * Match each OCR text line independently against the local card database.
+ * Used when a single photo/crop contains several card names at once (e.g.
+ * multiple cards fanned out so only each name strip is visible) — every
+ * line is treated as a candidate card rather than picking one overall best
+ * match for the whole crop.
  */
-export function matchCardLines(lines: string[], cards: CardEntry[], limit = 5): CardMatch[] {
-  if (cards.length === 0) return [];
+export function matchEachLine(lines: string[], cards: CardEntry[], maxScore = 0.4): LineMatch[] {
+  if (cards.length === 0) return lines.map((line) => ({ line }));
   const fuse = new Fuse(cards, {
     keys: ['matchKey'],
     includeScore: true,
@@ -21,22 +28,14 @@ export function matchCardLines(lines: string[], cards: CardEntry[], limit = 5): 
     ignoreLocation: true,
   });
 
-  const candidates = [...lines].sort((a, b) => b.length - a.length).slice(0, 6);
-  const seen = new Map<number, CardMatch>();
-
-  for (const line of candidates) {
+  return lines.map((line) => {
     const key = normalizeCardName(line);
-    if (!key) continue;
-    const results = fuse.search(key, { limit });
-    for (const r of results) {
-      const id = r.item.id!;
-      const score = r.score ?? 1;
-      const prior = seen.get(id);
-      if (!prior || score < prior.score) {
-        seen.set(id, { card: r.item, score });
-      }
-    }
-  }
-
-  return [...seen.values()].sort((a, b) => a.score - b.score).slice(0, limit);
+    if (!key) return { line };
+    const results = fuse.search(key, { limit: 1 });
+    const best = results[0];
+    if (!best) return { line };
+    const score = best.score ?? 1;
+    if (score > maxScore) return { line };
+    return { line, match: { card: best.item, score } };
+  });
 }
