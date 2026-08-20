@@ -3,17 +3,20 @@ import type { CardType, PlayerCard } from '../domain/types';
 import { recognizeImage } from '../ocr/ocr';
 import { matchCardLines, type CardMatch } from '../ocr/cardMatch';
 import { allCards, upsertCard } from '../db/db';
+import { cropAndEnhance, fullImageRect, type CropRect } from '../ocr/preprocess';
+import ImageCropper from './ImageCropper';
 
 interface Props {
   onAdd: (card: PlayerCard) => void;
   onClose: () => void;
 }
 
-type Stage = 'capture' | 'processing' | 'candidates' | 'manual';
+type Stage = 'capture' | 'cropping' | 'processing' | 'candidates' | 'manual';
 
 export default function CardCapture({ onAdd, onClose }: Props) {
   const [stage, setStage] = useState<Stage>('capture');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [processedPreview, setProcessedPreview] = useState<string | null>(null);
   const [ocrLines, setOcrLines] = useState<string[]>([]);
   const [candidates, setCandidates] = useState<CardMatch[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -24,14 +27,20 @@ export default function CardCapture({ onAdd, onClose }: Props) {
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoUrl(URL.createObjectURL(file));
-    setStage('processing');
     setError(null);
+    setStage('cropping');
+  }
+
+  async function runOcr(rect: CropRect, img: HTMLImageElement) {
+    setStage('processing');
     try {
-      const { lines } = await recognizeImage(file, 'jpn+eng');
+      const blob = await cropAndEnhance(img, rect);
+      setProcessedPreview(URL.createObjectURL(blob));
+      const { lines } = await recognizeImage(blob, 'jpn');
       setOcrLines(lines);
       const cards = await allCards();
       const matches = matchCardLines(lines, cards);
@@ -50,6 +59,14 @@ export default function CardCapture({ onAdd, onClose }: Props) {
     }
   }
 
+  function handleCropConfirm(rect: CropRect, img: HTMLImageElement) {
+    runOcr(rect, img);
+  }
+
+  function handleCropSkip(img: HTMLImageElement) {
+    runOcr(fullImageRect(img), img);
+  }
+
   function pickCandidate(m: CardMatch) {
     onAdd({
       cardId: m.card.id,
@@ -62,6 +79,11 @@ export default function CardCapture({ onAdd, onClose }: Props) {
   function goManualFromCandidates() {
     setManualName(ocrLines[0] ?? '');
     setStage('manual');
+  }
+
+  function retryCrop() {
+    setError(null);
+    setStage('cropping');
   }
 
   async function saveManual() {
@@ -106,8 +128,12 @@ export default function CardCapture({ onAdd, onClose }: Props) {
           </div>
         )}
 
-        {photoUrl && stage !== 'capture' && (
-          <img className="card-photo-preview" src={photoUrl} alt="カード" />
+        {stage === 'cropping' && photoUrl && (
+          <ImageCropper imageUrl={photoUrl} onConfirm={handleCropConfirm} onSkip={handleCropSkip} />
+        )}
+
+        {(stage === 'processing' || stage === 'candidates' || stage === 'manual') && processedPreview && (
+          <img className="card-photo-preview" src={processedPreview} alt="読み取り範囲" />
         )}
 
         {stage === 'processing' && <p className="hint-text">文字を読み取っています...</p>}
@@ -126,6 +152,9 @@ export default function CardCapture({ onAdd, onClose }: Props) {
                 </li>
               ))}
             </ul>
+            <button className="btn btn-ghost btn-block" onClick={retryCrop}>
+              うまく読み取れない・範囲を選び直す
+            </button>
             <button className="btn btn-ghost btn-block" onClick={goManualFromCandidates}>
               該当なし・手動で入力する
             </button>
@@ -148,6 +177,11 @@ export default function CardCapture({ onAdd, onClose }: Props) {
                   ))}
                 </ul>
               </div>
+            )}
+            {photoUrl && (
+              <button className="btn btn-ghost btn-block" onClick={retryCrop}>
+                範囲を選び直して再読み取り
+              </button>
             )}
             <label className="field">
               <span>カード名</span>

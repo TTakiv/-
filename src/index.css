@@ -433,10 +433,45 @@ select {
 
 .capture-stage,
 .candidates-stage,
-.manual-stage {
+.manual-stage,
+.cropper {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.cropper-stage {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #000;
+}
+
+.cropper-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none;
+  pointer-events: none;
+}
+
+.cropper-box {
+  position: absolute;
+  border: 2px solid var(--accent);
+  background: rgba(122, 62, 224, 0.2);
+  pointer-events: none;
+}
+
+.cropper-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cropper-actions .btn {
+  flex: 1;
 }
 
 .candidate-list {
