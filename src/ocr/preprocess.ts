@@ -17,18 +17,55 @@ export async function loadImage(source: File | Blob | string): Promise<HTMLImage
   return img;
 }
 
+/** Otsu's method: pick the gray threshold that best splits the histogram into two classes. */
+function otsuThreshold(hist: Float64Array, total: number): number {
+  let sum = 0;
+  for (let t = 0; t < 256; t++) sum += t * hist[t];
+
+  let sumB = 0;
+  let weightB = 0;
+  let maxVariance = 0;
+  let threshold = 127;
+
+  for (let t = 0; t < 256; t++) {
+    weightB += hist[t];
+    if (weightB === 0) continue;
+    const weightF = total - weightB;
+    if (weightF === 0) break;
+
+    sumB += t * hist[t];
+    const meanB = sumB / weightB;
+    const meanF = (sum - sumB) / weightF;
+    const variance = weightB * weightF * (meanB - meanF) * (meanB - meanF);
+    if (variance > maxVariance) {
+      maxVariance = variance;
+      threshold = t;
+    }
+  }
+  return threshold;
+}
+
 /**
  * Crop to the given rectangle (in the image's natural pixel coordinates),
- * then convert to grayscale and stretch contrast so faint printed text
- * separates from busy card-art backgrounds. Also upscales small crops,
- * since Tesseract reads higher-resolution text far more reliably.
+ * upscale for legibility, then binarize to clean black-text-on-white using
+ * Otsu's method. Agricola card names print as bold text on a solid-color
+ * banner, so a hard black/white split removes the banner color and card
+ * art entirely, which helps Tesseract far more than a grayscale/contrast
+ * pass alone. Whichever class (light or dark) covers less of the crop is
+ * assumed to be the text and is normalized to black, so this works for
+ * both dark-text-on-light and light-text-on-dark banners.
  */
 export function cropAndEnhance(
   img: HTMLImageElement,
   rect: CropRect,
-  minOutputWidth = 900,
+  minOutputWidth = 1400,
+  minOutputHeight = 220,
 ): Promise<Blob> {
-  const scale = Math.max(1, minOutputWidth / Math.max(1, rect.width));
+  const scale = Math.max(
+    1,
+    minOutputWidth / Math.max(1, rect.width),
+    minOutputHeight / Math.max(1, rect.height),
+  );
   const outW = Math.max(1, Math.round(rect.width * scale));
   const outH = Math.max(1, Math.round(rect.height * scale));
 
@@ -42,18 +79,24 @@ export function cropAndEnhance(
 
   const imageData = ctx.getImageData(0, 0, outW, outH);
   const data = imageData.data;
-  const gray = new Float32Array(outW * outH);
-  let min = 255;
-  let max = 0;
+  const pixelCount = outW * outH;
+  const gray = new Uint8ClampedArray(pixelCount);
+  const hist = new Float64Array(256);
   for (let i = 0, p = 0; i < data.length; i += 4, p++) {
     const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
     gray[p] = g;
-    if (g < min) min = g;
-    if (g > max) max = g;
+    hist[gray[p]]++;
   }
-  const range = Math.max(1, max - min);
-  for (let p = 0, i = 0; p < gray.length; p++, i += 4) {
-    const v = ((gray[p] - min) / range) * 255;
+
+  const threshold = otsuThreshold(hist, pixelCount);
+  let darkCount = 0;
+  for (let t = 0; t < threshold; t++) darkCount += hist[t];
+  const darkIsText = darkCount <= pixelCount - darkCount;
+
+  for (let p = 0, i = 0; p < pixelCount; p++, i += 4) {
+    const isDark = gray[p] < threshold;
+    const isText = darkIsText ? isDark : !isDark;
+    const v = isText ? 0 : 255;
     data[i] = data[i + 1] = data[i + 2] = v;
   }
   ctx.putImageData(imageData, 0, 0);

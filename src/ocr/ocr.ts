@@ -21,6 +21,13 @@ async function getWorker(lang: OcrLang): Promise<Worker> {
     await worker.setParameters({
       tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
       preserve_interword_spaces: '1',
+      // Card names are proper nouns/game jargon, not dictionary words —
+      // Tesseract's built-in Japanese word list otherwise "corrects"
+      // unfamiliar names into the closest common word, which is a common
+      // source of garbled results for exactly this kind of short text.
+      load_system_dawg: '0',
+      load_freq_dawg: '0',
+      user_defined_dpi: '300',
     });
     return worker;
   })();
