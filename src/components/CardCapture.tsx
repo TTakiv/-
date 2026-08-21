@@ -3,7 +3,7 @@ import type { CardType, PlayerCard } from '../domain/types';
 import { recognizeImage } from '../ocr/ocr';
 import { matchEachLine } from '../ocr/cardMatch';
 import { allCards, upsertCard } from '../db/db';
-import { cropAndEnhance, fullImageRect, type CropRect } from '../ocr/preprocess';
+import { cropAndEnhance, fullImageRect, loadImage, rotateImageBlob, type CropRect } from '../ocr/preprocess';
 import { normalizeCardName } from '../lib/normalize';
 import ImageCropper from './ImageCropper';
 
@@ -51,10 +51,31 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
   async function runOcr(rect: CropRect, img: HTMLImageElement) {
     setStage('processing');
     try {
-      const blob = await cropAndEnhance(img, rect);
-      setProcessedPreview(URL.createObjectURL(blob));
-      const { lines } = await recognizeImage(blob, 'jpn');
-      const cleanLines = lines.filter((l) => normalizeCardName(l).length >= MIN_LINE_LENGTH);
+      const straightBlob = await cropAndEnhance(img, rect);
+      let bestBlob = straightBlob;
+      let lines = (await recognizeImage(straightBlob, 'jpn')).lines;
+      let cleanLines = lines.filter((l) => normalizeCardName(l).length >= MIN_LINE_LENGTH);
+
+      // Nothing usable — the crop is very likely sideways/upside down
+      // (a common case when cards are fanned out at an angle). Retry the
+      // same crop rotated 90/180/270 degrees and keep whichever attempt
+      // actually produced readable text.
+      if (cleanLines.length === 0) {
+        const rotatable = await loadImage(URL.createObjectURL(straightBlob));
+        for (const deg of [90, 180, 270] as const) {
+          const rotatedBlob = await rotateImageBlob(rotatable, deg);
+          const rotatedLines = (await recognizeImage(rotatedBlob, 'jpn')).lines;
+          const rotatedClean = rotatedLines.filter((l) => normalizeCardName(l).length >= MIN_LINE_LENGTH);
+          if (rotatedClean.length > cleanLines.length) {
+            bestBlob = rotatedBlob;
+            lines = rotatedLines;
+            cleanLines = rotatedClean;
+          }
+          if (cleanLines.length > 0) break;
+        }
+      }
+
+      setProcessedPreview(URL.createObjectURL(bestBlob));
       setOcrLines(lines);
 
       if (cleanLines.length === 0) {
