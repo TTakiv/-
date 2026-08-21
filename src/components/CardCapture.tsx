@@ -4,7 +4,7 @@ import { recognizeImage } from '../ocr/ocr';
 import { matchEachLine } from '../ocr/cardMatch';
 import { allCards, upsertCard } from '../db/db';
 import { cropAndEnhance, fullImageRect, loadImage, rotateImageBlob, type CropRect } from '../ocr/preprocess';
-import { normalizeCardName } from '../lib/normalize';
+import { normalizeCardName, stripDigits } from '../lib/normalize';
 import ImageCropper from './ImageCropper';
 
 interface Props {
@@ -79,7 +79,7 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
       setOcrLines(lines);
 
       if (cleanLines.length === 0) {
-        setManualName(lines[0] ?? '');
+        setManualName(stripDigits(lines[0] ?? ''));
         setStage('manual');
         return;
       }
@@ -90,7 +90,7 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
         lineMatches.map((lm, i) => ({
           key: String(i),
           originalText: lm.line,
-          name: lm.match ? lm.match.card.displayName : lm.line,
+          name: lm.match ? lm.match.card.displayName : stripDigits(lm.line),
           type: lm.match ? lm.match.card.type : 'occupation',
           points: lm.match ? lm.match.card.points : 0,
           matched: Boolean(lm.match),
@@ -273,7 +273,7 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
                 <ul>
                   {ocrLines.slice(0, 5).map((l, i) => (
                     <li key={i}>
-                      <button className="link-btn" onClick={() => setManualName(l)}>
+                      <button className="link-btn" onClick={() => setManualName(stripDigits(l))}>
                         {l}
                       </button>
                     </li>

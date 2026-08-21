@@ -28,6 +28,12 @@ async function getWorker(lang: OcrLang): Promise<Worker> {
       load_system_dawg: '0',
       load_freq_dawg: '0',
       user_defined_dpi: '300',
+      // Agricola card names never contain digits (only the cost/value
+      // icons printed next to the name do). Blacklisting digits stops
+      // Tesseract from ever trying to fit a numeral shape into the name
+      // text, which was pulling in the adjacent cost number and confusing
+      // recognition of the actual kanji/kana next to it.
+      tessedit_char_blacklist: '0123456789０１２３４５６７８９',
     });
     return worker;
   })();
