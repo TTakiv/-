@@ -291,11 +291,13 @@ select {
 
 .board-photo-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .board-photo-buttons .btn {
   flex: 1;
+  min-width: 110px;
 }
 
 .board-photo-preview,

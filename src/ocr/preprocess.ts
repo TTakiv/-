@@ -242,6 +242,28 @@ export function fullImageRect(img: HTMLImageElement): CropRect {
 }
 
 /**
+ * Crop to the given rectangle in full color, with no OCR-oriented
+ * processing (no grayscale, no binarization, no padding). Used for the
+ * board reference photo, which the user just looks at while entering
+ * counts rather than something that gets OCR'd.
+ */
+export function cropPlain(img: HTMLImageElement, rect: CropRect): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(rect.width));
+  canvas.height = Math.max(1, Math.round(rect.height));
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, canvas.width, canvas.height);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('画像処理に失敗しました'))),
+      'image/jpeg',
+      0.9,
+    );
+  });
+}
+
+/**
  * Rotate an image by a multiple of 90 degrees, returning a new image blob.
  * Photos of cards laid flat are often captured sideways (or the cards
  * themselves are turned 90 degrees to fan several out in one frame), and

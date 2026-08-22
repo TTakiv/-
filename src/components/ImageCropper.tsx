@@ -13,9 +13,24 @@ interface Props {
   imageUrl: string;
   onConfirm: (rect: CropRect, img: HTMLImageElement) => void;
   onSkip: (img: HTMLImageElement) => void;
+  hintText?: string;
+  confirmLabel?: string;
+  skipLabel?: string;
+  altText?: string;
 }
 
-export default function ImageCropper({ imageUrl, onConfirm, onSkip }: Props) {
+const DEFAULT_HINT =
+  'カード名の文字から少し余白を残して囲むと読み取り精度が上がります(文字ギリギリだと欠けることがあります)。複数枚のカード名が並んでいる場合は、まとめて囲んでもOKです。カードが横向き・逆さまに写っている場合は「回転」でまっすぐにしてください。';
+
+export default function ImageCropper({
+  imageUrl,
+  onConfirm,
+  onSkip,
+  hintText = DEFAULT_HINT,
+  confirmLabel = 'この範囲で読み取る',
+  skipLabel = '囲まず全体で読み取る',
+  altText = '写真',
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentImg, setCurrentImg] = useState<HTMLImageElement | null>(null);
   const [box, setBox] = useState<Box | null>(null);
@@ -90,9 +105,7 @@ export default function ImageCropper({ imageUrl, onConfirm, onSkip }: Props) {
 
   return (
     <div className="cropper">
-      <p className="hint-text">
-        カード名の文字から少し余白を残して囲むと読み取り精度が上がります(文字ギリギリだと欠けることがあります)。複数枚のカード名が並んでいる場合は、まとめて囲んでもOKです。カードが横向き・逆さまに写っている場合は「回転」でまっすぐにしてください。
-      </p>
+      <p className="hint-text">{hintText}</p>
       <div className="cropper-rotate-row">
         <button type="button" className="btn btn-ghost" onClick={handleRotate} disabled={!currentImg}>
           🔄 90度回転
@@ -107,16 +120,16 @@ export default function ImageCropper({ imageUrl, onConfirm, onSkip }: Props) {
         onPointerCancel={handlePointerUp}
       >
         {currentImg && (
-          <img src={currentImg.src} alt="カード" className="cropper-image" draggable={false} />
+          <img src={currentImg.src} alt={altText} className="cropper-image" draggable={false} />
         )}
         {box && <div className="cropper-box" style={{ left: box.x, top: box.y, width: box.w, height: box.h }} />}
       </div>
       <div className="cropper-actions">
         <button className="btn btn-ghost" onClick={() => currentImg && onSkip(currentImg)} disabled={!currentImg}>
-          囲まず全体で読み取る
+          {skipLabel}
         </button>
         <button className="btn btn-primary" onClick={handleConfirm} disabled={!box || box.w < 12 || box.h < 12}>
-          この範囲で読み取る
+          {confirmLabel}
         </button>
       </div>
     </div>

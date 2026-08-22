@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import type { BoardInputs, RoomType } from '../domain/types';
 import { calcBoardScore } from '../domain/boardScore';
+import { cropPlain, type CropRect } from '../ocr/preprocess';
 import NumberStepper from './NumberStepper';
+import ImageCropper from './ImageCropper';
 
 interface Props {
   board: BoardInputs;
@@ -16,6 +18,7 @@ const ROOM_LABEL: Record<RoomType, string> = {
 
 export default function BoardScoreForm({ board, onChange }: Props) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [rawPhotoUrl, setRawPhotoUrl] = useState<string | null>(null);
   const cameraFileRef = useRef<HTMLInputElement>(null);
   const libraryFileRef = useRef<HTMLInputElement>(null);
   const score = calcBoardScore(board);
@@ -27,31 +30,60 @@ export default function BoardScoreForm({ board, onChange }: Props) {
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPhotoUrl(url);
+    setRawPhotoUrl(URL.createObjectURL(file));
+  }
+
+  async function handleCropConfirm(rect: CropRect, img: HTMLImageElement) {
+    const blob = await cropPlain(img, rect);
+    setPhotoUrl(URL.createObjectURL(blob));
+    setRawPhotoUrl(null);
+  }
+
+  function handleCropSkip(img: HTMLImageElement) {
+    setPhotoUrl(img.src);
+    setRawPhotoUrl(null);
   }
 
   return (
     <div className="board-form">
       <div className="board-photo-section">
-        <div className="board-photo-buttons">
-          <button className="btn btn-ghost" onClick={() => cameraFileRef.current?.click()}>
-            📷 写真を撮る
-          </button>
-          <button className="btn btn-ghost" onClick={() => libraryFileRef.current?.click()}>
-            🖼️ アルバムから選択
-          </button>
-        </div>
-        <input
-          ref={cameraFileRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          hidden
-          onChange={handlePhoto}
-        />
-        <input ref={libraryFileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
-        {photoUrl && <img className="board-photo-preview" src={photoUrl} alt="農場ボード" />}
+        {rawPhotoUrl ? (
+          <ImageCropper
+            imageUrl={rawPhotoUrl}
+            onConfirm={handleCropConfirm}
+            onSkip={handleCropSkip}
+            hintText="写真が横向き・逆さまなら「回転」でまっすぐにできます。見たい範囲だけ指で囲んで切り抜くと、数えるときに見やすくなります(囲まなくてもOK)。"
+            confirmLabel="この範囲で保存する"
+            skipLabel="切り抜かずに保存する"
+            altText="農場ボード"
+          />
+        ) : (
+          <>
+            <div className="board-photo-buttons">
+              <button className="btn btn-ghost" onClick={() => cameraFileRef.current?.click()}>
+                📷 写真を撮る
+              </button>
+              <button className="btn btn-ghost" onClick={() => libraryFileRef.current?.click()}>
+                🖼️ アルバムから選択
+              </button>
+              {photoUrl && (
+                <button className="btn btn-ghost" onClick={() => setRawPhotoUrl(photoUrl)}>
+                  ✂️ 編集
+                </button>
+              )}
+            </div>
+            <input
+              ref={cameraFileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={handlePhoto}
+            />
+            <input ref={libraryFileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
+            {photoUrl && <img className="board-photo-preview" src={photoUrl} alt="農場ボード" />}
+          </>
+        )}
         <p className="hint-text">
           農場ボードの資源・柵・部屋を数えて入力してください。数値は自動で集計されます。
         </p>
