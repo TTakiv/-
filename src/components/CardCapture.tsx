@@ -3,7 +3,9 @@ import type { CardType, PlayerCard } from '../domain/types';
 import { recognizeCardsWithGemini, GeminiOcrError } from '../ocr/gemini';
 import { matchEachLine } from '../ocr/cardMatch';
 import { allCards, upsertCard } from '../db/db';
-import { loadImage } from '../ocr/preprocess';
+import { loadImage, cropPlain, fullImageRect, blobToDataUrl } from '../ocr/preprocess';
+
+const CARD_PHOTO_MAX_DIMENSION = 1000;
 
 interface Props {
   defaultType: CardType;
@@ -30,6 +32,7 @@ interface BatchRow {
 export default function CardCapture({ defaultType, onAddMany, onClose }: Props) {
   const [stage, setStage] = useState<Stage>('capture');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [batchRows, setBatchRows] = useState<BatchRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,11 +47,14 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
     if (!file) return;
     const url = URL.createObjectURL(file);
     setPhotoUrl(url);
+    setPhotoDataUrl(null);
     setError(null);
     setStage('processing');
 
     try {
       const img = await loadImage(url);
+      const blob = await cropPlain(img, fullImageRect(img), CARD_PHOTO_MAX_DIMENSION);
+      setPhotoDataUrl(await blobToDataUrl(blob));
       const names = await recognizeCardsWithGemini(img);
 
       if (names.length === 0) {
@@ -83,6 +89,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
   function retryPhoto() {
     setError(null);
     setPhotoUrl(null);
+    setPhotoDataUrl(null);
     setStage('capture');
   }
 
@@ -106,6 +113,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
         displayName: s.displayName,
         type: s.type,
         points: s.points,
+        photo: photoDataUrl ?? undefined,
       })),
     );
   }
@@ -114,7 +122,15 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
     const name = manualName.trim();
     if (!name) return;
     const saved = await upsertCard({ displayName: name, type: defaultType, points: manualPoints });
-    onAddMany([{ cardId: saved.id, displayName: saved.displayName, type: saved.type, points: saved.points }]);
+    onAddMany([
+      {
+        cardId: saved.id,
+        displayName: saved.displayName,
+        type: saved.type,
+        points: saved.points,
+        photo: photoDataUrl ?? undefined,
+      },
+    ]);
   }
 
   const includedCount = batchRows.filter((r) => r.include).length;

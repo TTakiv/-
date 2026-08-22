@@ -108,7 +108,10 @@ export default function GameDetail() {
                     {p.cards.map((c, i) => (
                       <tr key={i}>
                         <td>
-                          {c.displayName} ({c.type === 'occupation' ? '職業' : '進歩'})
+                          <span className="breakdown-card-name">
+                            {c.photo && <img className="card-thumb" src={c.photo} alt={c.displayName} />}
+                            {c.displayName} ({c.type === 'occupation' ? '職業' : '進歩'})
+                          </span>
                         </td>
                         <td>{c.points}</td>
                       </tr>

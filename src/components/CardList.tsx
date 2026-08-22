@@ -14,6 +14,7 @@ export default function CardList({ cards, onRemove, showTypeBadge = true }: Prop
     <ul className="card-list">
       {cards.map((c, i) => (
         <li key={i} className="card-list-item">
+          {c.photo && <img className="card-thumb" src={c.photo} alt={c.displayName} />}
           {showTypeBadge && (
             <span className={`card-type-badge ${c.type}`}>
               {c.type === 'occupation' ? '職業' : '進歩'}

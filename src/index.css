@@ -406,6 +406,21 @@ select {
   color: var(--text-h);
 }
 
+.card-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  flex: none;
+}
+
+.breakdown-card-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .total-summary {
   display: flex;
   justify-content: space-between;
