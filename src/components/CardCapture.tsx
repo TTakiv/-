@@ -24,7 +24,6 @@ interface BatchRow {
   key: string;
   originalText: string;
   name: string;
-  type: CardType;
   points: number;
   matched: boolean;
   include: boolean;
@@ -41,7 +40,6 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
   const [error, setError] = useState<string | null>(null);
 
   const [manualName, setManualName] = useState('');
-  const [manualType, setManualType] = useState<CardType>(defaultType);
   const [manualPoints, setManualPoints] = useState(0);
 
   const cameraFileRef = useRef<HTMLInputElement>(null);
@@ -100,7 +98,6 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
           key: String(i),
           originalText: lm.line,
           name: lm.match ? lm.match.card.displayName : stripDigits(lm.line),
-          type: lm.match ? lm.match.card.type : defaultType,
           points: lm.match ? lm.match.card.points : 0,
           matched: Boolean(lm.match),
           include: true,
@@ -147,7 +144,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
     if (included.length === 0) return;
     const saved = await Promise.all(
       included.map((r) =>
-        upsertCard({ displayName: r.name.trim(), type: r.type, points: r.points }),
+        upsertCard({ displayName: r.name.trim(), type: defaultType, points: r.points }),
       ),
     );
     onAddMany(
@@ -163,7 +160,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
   async function saveManual() {
     const name = manualName.trim();
     if (!name) return;
-    const saved = await upsertCard({ displayName: name, type: manualType, points: manualPoints });
+    const saved = await upsertCard({ displayName: name, type: defaultType, points: manualPoints });
     onAddMany([{ cardId: saved.id, displayName: saved.displayName, type: saved.type, points: saved.points }]);
   }
 
@@ -203,7 +200,6 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
               className="btn btn-ghost btn-block"
               onClick={() => {
                 setManualName('');
-                setManualType(defaultType);
                 setStage('manual');
               }}
             >
@@ -226,7 +222,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
           <div className="batch-stage">
             {error && <p className="error-text">{error}</p>}
             <p className="hint-text">
-              読み取れた行ごとにカードとして表示しています。名前・種類・得点を確認し、不要な行はチェックを外してください。
+              読み取れた行ごとにカードとして表示しています。名前・得点を確認し、不要な行はチェックを外してください。
             </p>
             <ul className="batch-list">
               {batchRows.map((row) => (
@@ -252,14 +248,6 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
                       onChange={(e) => updateRow(row.key, { name: e.target.value })}
                       disabled={!row.include}
                     />
-                    <select
-                      value={row.type}
-                      onChange={(e) => updateRow(row.key, { type: e.target.value as CardType })}
-                      disabled={!row.include}
-                    >
-                      <option value="occupation">職業</option>
-                      <option value="improvement">進歩</option>
-                    </select>
                     <input
                       type="number"
                       className="batch-points-input"
@@ -317,13 +305,6 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
             <label className="field">
               <span>カード名</span>
               <input value={manualName} onChange={(e) => setManualName(e.target.value)} />
-            </label>
-            <label className="field">
-              <span>種類</span>
-              <select value={manualType} onChange={(e) => setManualType(e.target.value as CardType)}>
-                <option value="occupation">職業カード</option>
-                <option value="improvement">進歩カード</option>
-              </select>
             </label>
             <label className="field">
               <span>得点</span>
