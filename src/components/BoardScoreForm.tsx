@@ -99,7 +99,7 @@ export default function BoardScoreForm({ board, onChange }: Props) {
           </>
         )}
         <p className="hint-text">
-          農場ボードの資源・柵・部屋を数えて入力してください。数値は自動で集計されます。
+          農場ボードの資源・柵・部屋を数えて入力してください。数値は自動で集計されます。上で写真を保存しておくと、各項目の📷ボタンは撮り直しなしにその写真から範囲を選んで数えられます。
         </p>
       </div>
 
@@ -206,6 +206,7 @@ export default function BoardScoreForm({ board, onChange }: Props) {
       {countingField && (
         <BlobCounter
           label={countingField.label}
+          initialPhotoUrl={photoUrl}
           onApply={(count) => {
             set(countingField.key, count);
             setCountingField(null);

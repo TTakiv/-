@@ -7,13 +7,14 @@ interface Props {
   label: string;
   onApply: (count: number) => void;
   onClose: () => void;
+  initialPhotoUrl?: string | null;
 }
 
 type Stage = 'capture' | 'cropping' | 'analyzing' | 'result';
 
-export default function BlobCounter({ label, onApply, onClose }: Props) {
-  const [stage, setStage] = useState<Stage>('capture');
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+export default function BlobCounter({ label, onApply, onClose, initialPhotoUrl }: Props) {
+  const [stage, setStage] = useState<Stage>(initialPhotoUrl ? 'cropping' : 'capture');
+  const [photoUrl, setPhotoUrl] = useState<string | null>(initialPhotoUrl ?? null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [count, setCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +55,12 @@ export default function BlobCounter({ label, onApply, onClose }: Props) {
   function retryCrop() {
     setError(null);
     setStage('cropping');
+  }
+
+  function useAnotherPhoto() {
+    setError(null);
+    setPhotoUrl(null);
+    setStage('capture');
   }
 
   return (
@@ -101,6 +108,9 @@ export default function BlobCounter({ label, onApply, onClose }: Props) {
               skipLabel="囲まず全体を数える"
               altText={label}
             />
+            <button className="btn btn-ghost btn-block" onClick={useAnotherPhoto}>
+              別の写真を使う
+            </button>
           </>
         )}
 
