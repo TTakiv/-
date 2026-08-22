@@ -40,6 +40,7 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
 
   const cameraFileRef = useRef<HTMLInputElement>(null);
   const libraryFileRef = useRef<HTMLInputElement>(null);
+  const [lastRunArgs, setLastRunArgs] = useState<{ rect: CropRect; img: HTMLImageElement } | null>(null);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -49,10 +50,11 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
     setStage('cropping');
   }
 
-  async function runOcr(rect: CropRect, img: HTMLImageElement) {
+  async function runOcr(rect: CropRect, img: HTMLImageElement, binarize: boolean) {
+    setLastRunArgs({ rect, img });
     setStage('processing');
     try {
-      const straightBlob = await cropAndEnhance(img, rect);
+      const straightBlob = await cropAndEnhance(img, rect, binarize);
       let bestBlob = straightBlob;
       let lines = (await recognizeImage(straightBlob, 'jpn')).lines;
       let cleanLines = lines.filter((l) => normalizeCardName(l).length >= MIN_LINE_LENGTH);
@@ -108,16 +110,22 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
   }
 
   function handleCropConfirm(rect: CropRect, img: HTMLImageElement) {
-    runOcr(rect, img);
+    runOcr(rect, img, true);
   }
 
   function handleCropSkip(img: HTMLImageElement) {
-    runOcr(fullImageRect(img), img);
+    runOcr(fullImageRect(img), img, true);
   }
 
   function retryCrop() {
     setError(null);
     setStage('cropping');
+  }
+
+  function retryWithoutBinarize() {
+    if (!lastRunArgs) return;
+    setError(null);
+    runOcr(lastRunArgs.rect, lastRunArgs.img, false);
   }
 
   function updateRow(key: string, patch: Partial<BatchRow>) {
@@ -256,6 +264,9 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
                 </li>
               ))}
             </ul>
+            <button className="btn btn-ghost btn-block" onClick={retryWithoutBinarize}>
+              🔁 白黒化せずに読み取り直す
+            </button>
             <button className="btn btn-ghost btn-block" onClick={retryCrop}>
               うまく読み取れない・範囲を選び直す
             </button>
@@ -285,6 +296,11 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
                   ))}
                 </ul>
               </div>
+            )}
+            {lastRunArgs && (
+              <button className="btn btn-ghost btn-block" onClick={retryWithoutBinarize}>
+                🔁 白黒化せずに読み取り直す
+              </button>
             )}
             {photoUrl && (
               <button className="btn btn-ghost btn-block" onClick={retryCrop}>

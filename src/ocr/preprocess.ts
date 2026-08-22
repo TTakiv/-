@@ -118,33 +118,64 @@ function otsuThreshold(hist: Float64Array, total: number): number {
 }
 
 /**
- * Crop to the given rectangle (in the image's natural pixel coordinates),
- * upscale for legibility, blur slightly to smooth fine print texture, then
- * binarize to clean black-text-on-white using Otsu's method. Agricola card
- * names print as bold text on a solid-color banner, so a hard black/white
- * split removes the banner color and card art entirely, which helps
- * Tesseract far more than a grayscale/contrast pass alone. Whichever class
- * (light or dark) covers less of the crop is assumed to be the text and is
- * normalized to black, so this works for both dark-text-on-light and
- * light-text-on-dark banners. Finally, any binarized "text" blob still
- * touching the crop's outer edge is cleared — those are darker card
- * background bleeding into the corners of a rectangular crop around a
- * trapezoid-shaped name banner, not text, and left in place they turn into
- * large black regions that badly confuse Tesseract's layout analysis.
+ * Expand a crop rectangle by a margin on every side, clamped to the source
+ * image bounds. A rectangular selection often lands with real text very
+ * close to (or right on) its edge — especially once the user is told to
+ * crop tightly — and border-clearing below cannot tell that apart from
+ * background bleeding into a corner, so it would delete real glyph strokes
+ * that touch the edge. Padding first guarantees genuine image content
+ * (not synthetic blank space) surrounds whatever the user selected, so the
+ * border-clear step has real background to work with instead of eating
+ * into the text itself.
+ */
+function padRect(rect: CropRect, imgW: number, imgH: number, marginRatio = 0.25): CropRect {
+  const mx = Math.max(rect.width * marginRatio, 24);
+  const my = Math.max(rect.height * marginRatio, 24);
+  const x = Math.max(0, rect.x - mx);
+  const y = Math.max(0, rect.y - my);
+  const x2 = Math.min(imgW, rect.x + rect.width + mx);
+  const y2 = Math.min(imgH, rect.y + rect.height + my);
+  return { x, y, width: x2 - x, height: y2 - y };
+}
+
+/**
+ * Crop to the given rectangle (in the image's natural pixel coordinates,
+ * automatically padded with a safety margin — see padRect), upscale for
+ * legibility, and blur slightly to smooth fine print texture.
+ *
+ * When `binarize` is true (the default), also hard-threshold to clean
+ * black-text-on-white using Otsu's method. Agricola card names print as
+ * bold text on a solid-color banner, so this removes the banner color and
+ * card art entirely, which helps Tesseract far more than a grayscale pass
+ * alone. Whichever class (light or dark) covers less of the crop is
+ * assumed to be the text and is normalized to black, so this works for
+ * both dark-text-on-light and light-text-on-dark banners. Any binarized
+ * "text" blob still touching the crop's outer edge is then cleared — those
+ * are darker card background/border bleeding in around a trapezoid-shaped
+ * name banner, not text, and left in place they turn into large black
+ * regions that badly confuse Tesseract's layout analysis.
+ *
+ * When `binarize` is false, only the blur + upscale is applied and the
+ * grayscale tones are left intact (no thresholding, no border-clearing),
+ * so Tesseract's own internal binarization handles it instead. Some card
+ * layouts binarize worse than they OCR raw (e.g. very low-contrast print,
+ * strong glare) so this is offered as an alternate pass to retry with.
  */
 export function cropAndEnhance(
   img: HTMLImageElement,
   rect: CropRect,
+  binarize = true,
   minOutputWidth = 1400,
   minOutputHeight = 220,
 ): Promise<Blob> {
+  const padded = padRect(rect, img.naturalWidth, img.naturalHeight);
   const scale = Math.max(
     1,
-    minOutputWidth / Math.max(1, rect.width),
-    minOutputHeight / Math.max(1, rect.height),
+    minOutputWidth / Math.max(1, padded.width),
+    minOutputHeight / Math.max(1, padded.height),
   );
-  const outW = Math.max(1, Math.round(rect.width * scale));
-  const outH = Math.max(1, Math.round(rect.height * scale));
+  const outW = Math.max(1, Math.round(padded.width * scale));
+  const outH = Math.max(1, Math.round(padded.height * scale));
 
   const canvas = document.createElement('canvas');
   canvas.width = outW;
@@ -152,7 +183,7 @@ export function cropAndEnhance(
   const ctx = canvas.getContext('2d')!;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, outW, outH);
+  ctx.drawImage(img, padded.x, padded.y, padded.width, padded.height, 0, 0, outW, outH);
 
   const imageData = ctx.getImageData(0, 0, outW, outH);
   const data = imageData.data;
@@ -163,24 +194,38 @@ export function cropAndEnhance(
   }
   const gray = boxBlur(rawGray, outW, outH, 1);
 
-  const hist = new Float64Array(256);
-  for (let p = 0; p < pixelCount; p++) hist[gray[p]]++;
+  if (binarize) {
+    const hist = new Float64Array(256);
+    for (let p = 0; p < pixelCount; p++) hist[gray[p]]++;
 
-  const threshold = otsuThreshold(hist, pixelCount);
-  let darkCount = 0;
-  for (let t = 0; t < threshold; t++) darkCount += hist[t];
-  const darkIsText = darkCount <= pixelCount - darkCount;
+    const threshold = otsuThreshold(hist, pixelCount);
+    let darkCount = 0;
+    for (let t = 0; t < threshold; t++) darkCount += hist[t];
+    const darkIsText = darkCount <= pixelCount - darkCount;
 
-  const isText = new Uint8Array(pixelCount);
-  for (let p = 0; p < pixelCount; p++) {
-    const isDark = gray[p] < threshold;
-    isText[p] = (darkIsText ? isDark : !isDark) ? 1 : 0;
-  }
-  clearBorderConnected(isText, outW, outH);
+    const isText = new Uint8Array(pixelCount);
+    for (let p = 0; p < pixelCount; p++) {
+      const isDark = gray[p] < threshold;
+      isText[p] = (darkIsText ? isDark : !isDark) ? 1 : 0;
+    }
+    clearBorderConnected(isText, outW, outH);
 
-  for (let p = 0, i = 0; p < pixelCount; p++, i += 4) {
-    const v = isText[p] ? 0 : 255;
-    data[i] = data[i + 1] = data[i + 2] = v;
+    for (let p = 0, i = 0; p < pixelCount; p++, i += 4) {
+      const v = isText[p] ? 0 : 255;
+      data[i] = data[i + 1] = data[i + 2] = v;
+    }
+  } else {
+    let min = 255;
+    let max = 0;
+    for (let p = 0; p < pixelCount; p++) {
+      if (gray[p] < min) min = gray[p];
+      if (gray[p] > max) max = gray[p];
+    }
+    const range = Math.max(1, max - min);
+    for (let p = 0, i = 0; p < pixelCount; p++, i += 4) {
+      const v = ((gray[p] - min) / range) * 255;
+      data[i] = data[i + 1] = data[i + 2] = v;
+    }
   }
   ctx.putImageData(imageData, 0, 0);
 
