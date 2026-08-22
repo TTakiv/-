@@ -16,7 +16,8 @@ const ROOM_LABEL: Record<RoomType, string> = {
 
 export default function BoardScoreForm({ board, onChange }: Props) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraFileRef = useRef<HTMLInputElement>(null);
+  const libraryFileRef = useRef<HTMLInputElement>(null);
   const score = calcBoardScore(board);
 
   function set<K extends keyof BoardInputs>(key: K, value: BoardInputs[K]) {
@@ -33,17 +34,23 @@ export default function BoardScoreForm({ board, onChange }: Props) {
   return (
     <div className="board-form">
       <div className="board-photo-section">
-        <button className="btn btn-ghost" onClick={() => fileRef.current?.click()}>
-          📷 ボードの写真を撮る (見ながら入力)
-        </button>
+        <div className="board-photo-buttons">
+          <button className="btn btn-ghost" onClick={() => cameraFileRef.current?.click()}>
+            📷 写真を撮る
+          </button>
+          <button className="btn btn-ghost" onClick={() => libraryFileRef.current?.click()}>
+            🖼️ アルバムから選択
+          </button>
+        </div>
         <input
-          ref={fileRef}
+          ref={cameraFileRef}
           type="file"
           accept="image/*"
           capture="environment"
           hidden
           onChange={handlePhoto}
         />
+        <input ref={libraryFileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
         {photoUrl && <img className="board-photo-preview" src={photoUrl} alt="農場ボード" />}
         <p className="hint-text">
           農場ボードの資源・柵・部屋を数えて入力してください。数値は自動で集計されます。

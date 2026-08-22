@@ -38,7 +38,8 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
   const [manualType, setManualType] = useState<CardType>('occupation');
   const [manualPoints, setManualPoints] = useState(0);
 
-  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraFileRef = useRef<HTMLInputElement>(null);
+  const libraryFileRef = useRef<HTMLInputElement>(null);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -166,20 +167,24 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
 
         {stage === 'capture' && (
           <div className="capture-stage">
-            <button className="btn btn-primary btn-block" onClick={() => fileRef.current?.click()}>
+            <button className="btn btn-primary btn-block" onClick={() => cameraFileRef.current?.click()}>
               📷 カードを撮影
+            </button>
+            <button className="btn btn-ghost btn-block" onClick={() => libraryFileRef.current?.click()}>
+              🖼️ アルバムから選択
             </button>
             <p className="hint-text">
               複数枚のカード名を並べて写しても、まとめて1枚の写真で読み取れます。
             </p>
             <input
-              ref={fileRef}
+              ref={cameraFileRef}
               type="file"
               accept="image/*"
               capture="environment"
               hidden
               onChange={handleFile}
             />
+            <input ref={libraryFileRef} type="file" accept="image/*" hidden onChange={handleFile} />
             <button
               className="btn btn-ghost btn-block"
               onClick={() => {

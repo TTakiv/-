@@ -289,6 +289,15 @@ select {
   gap: 8px;
 }
 
+.board-photo-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.board-photo-buttons .btn {
+  flex: 1;
+}
+
 .board-photo-preview,
 .card-photo-preview {
   width: 100%;
