@@ -22,7 +22,7 @@ const ALLOWED_ORIGINS = new Set([
   'http://localhost:5173',
 ]);
 
-const MODEL = 'gemini-flash-latest';
+const MODEL = 'gemini-flash-lite-latest';
 
 const PROMPT = `この画像には、ボードゲーム「アグリコラ」の職業カードまたは進歩カードが1枚以上写っています。
 写っているカードの名前だけを、画像内で見える順番にすべて日本語で抽出してください。

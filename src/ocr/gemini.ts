@@ -9,7 +9,7 @@ export class GeminiOcrError extends Error {
 }
 
 /** Downscale/compress a photo before upload, to keep requests fast on mobile networks. */
-async function prepareImage(img: HTMLImageElement, maxDimension = 1600): Promise<{ base64: string; mimeType: string }> {
+async function prepareImage(img: HTMLImageElement, maxDimension = 1024): Promise<{ base64: string; mimeType: string }> {
   const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight));
   const w = Math.max(1, Math.round(img.naturalWidth * scale));
   const h = Math.max(1, Math.round(img.naturalHeight * scale));
