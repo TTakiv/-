@@ -4,9 +4,10 @@ interface Props {
   onChange: (v: number) => void;
   min?: number;
   points?: number;
+  onPhotoCount?: () => void;
 }
 
-export default function NumberStepper({ label, value, onChange, min = 0, points }: Props) {
+export default function NumberStepper({ label, value, onChange, min = 0, points, onPhotoCount }: Props) {
   return (
     <div className="stepper-row">
       <div className="stepper-label">
@@ -18,6 +19,16 @@ export default function NumberStepper({ label, value, onChange, min = 0, points 
         )}
       </div>
       <div className="stepper-controls">
+        {onPhotoCount && (
+          <button
+            type="button"
+            className="stepper-btn stepper-photo-btn"
+            onClick={onPhotoCount}
+            aria-label={`${label}を写真から数える`}
+          >
+            📷
+          </button>
+        )}
         <button
           type="button"
           className="stepper-btn"

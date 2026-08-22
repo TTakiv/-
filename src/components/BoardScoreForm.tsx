@@ -4,6 +4,7 @@ import { calcBoardScore } from '../domain/boardScore';
 import { cropPlain, type CropRect } from '../ocr/preprocess';
 import NumberStepper from './NumberStepper';
 import ImageCropper from './ImageCropper';
+import BlobCounter from './BlobCounter';
 
 interface Props {
   board: BoardInputs;
@@ -16,9 +17,22 @@ const ROOM_LABEL: Record<RoomType, string> = {
   stone: '石の家 (2点/部屋)',
 };
 
+type CountableField =
+  | 'fields'
+  | 'pastures'
+  | 'fencedStables'
+  | 'grain'
+  | 'vegetables'
+  | 'sheep'
+  | 'wildBoar'
+  | 'cattle'
+  | 'rooms'
+  | 'familyMembers';
+
 export default function BoardScoreForm({ board, onChange }: Props) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [rawPhotoUrl, setRawPhotoUrl] = useState<string | null>(null);
+  const [countingField, setCountingField] = useState<{ key: CountableField; label: string } | null>(null);
   const cameraFileRef = useRef<HTMLInputElement>(null);
   const libraryFileRef = useRef<HTMLInputElement>(null);
   const score = calcBoardScore(board);
@@ -89,34 +103,62 @@ export default function BoardScoreForm({ board, onChange }: Props) {
         </p>
       </div>
 
-      <NumberStepper label="畑" value={board.fields} onChange={(v) => set('fields', v)} points={score.fields} />
+      <NumberStepper
+        label="畑"
+        value={board.fields}
+        onChange={(v) => set('fields', v)}
+        points={score.fields}
+        onPhotoCount={() => setCountingField({ key: 'fields', label: '畑' })}
+      />
       <NumberStepper
         label="牧場 (柵で囲まれた区画数)"
         value={board.pastures}
         onChange={(v) => set('pastures', v)}
         points={score.pastures}
+        onPhotoCount={() => setCountingField({ key: 'pastures', label: '牧場' })}
       />
       <NumberStepper
         label="柵付き小屋"
         value={board.fencedStables}
         onChange={(v) => set('fencedStables', v)}
         points={score.fencedStables}
+        onPhotoCount={() => setCountingField({ key: 'fencedStables', label: '柵付き小屋' })}
       />
-      <NumberStepper label="穀物" value={board.grain} onChange={(v) => set('grain', v)} points={score.grain} />
+      <NumberStepper
+        label="穀物"
+        value={board.grain}
+        onChange={(v) => set('grain', v)}
+        points={score.grain}
+        onPhotoCount={() => setCountingField({ key: 'grain', label: '穀物' })}
+      />
       <NumberStepper
         label="野菜"
         value={board.vegetables}
         onChange={(v) => set('vegetables', v)}
         points={score.vegetables}
+        onPhotoCount={() => setCountingField({ key: 'vegetables', label: '野菜' })}
       />
-      <NumberStepper label="羊" value={board.sheep} onChange={(v) => set('sheep', v)} points={score.sheep} />
+      <NumberStepper
+        label="羊"
+        value={board.sheep}
+        onChange={(v) => set('sheep', v)}
+        points={score.sheep}
+        onPhotoCount={() => setCountingField({ key: 'sheep', label: '羊' })}
+      />
       <NumberStepper
         label="猪"
         value={board.wildBoar}
         onChange={(v) => set('wildBoar', v)}
         points={score.wildBoar}
+        onPhotoCount={() => setCountingField({ key: 'wildBoar', label: '猪' })}
       />
-      <NumberStepper label="牛" value={board.cattle} onChange={(v) => set('cattle', v)} points={score.cattle} />
+      <NumberStepper
+        label="牛"
+        value={board.cattle}
+        onChange={(v) => set('cattle', v)}
+        points={score.cattle}
+        onPhotoCount={() => setCountingField({ key: 'cattle', label: '牛' })}
+      />
       <NumberStepper
         label="未使用スペース"
         value={board.unusedSpaces}
@@ -134,13 +176,21 @@ export default function BoardScoreForm({ board, onChange }: Props) {
           ))}
         </select>
       </div>
-      <NumberStepper label="部屋数" value={board.rooms} onChange={(v) => set('rooms', v)} min={1} points={score.rooms} />
+      <NumberStepper
+        label="部屋数"
+        value={board.rooms}
+        onChange={(v) => set('rooms', v)}
+        min={1}
+        points={score.rooms}
+        onPhotoCount={() => setCountingField({ key: 'rooms', label: '部屋' })}
+      />
       <NumberStepper
         label="家族の人数"
         value={board.familyMembers}
         onChange={(v) => set('familyMembers', v)}
         min={1}
         points={score.familyMembers}
+        onPhotoCount={() => setCountingField({ key: 'familyMembers', label: '家族の駒' })}
       />
       <NumberStepper
         label="物乞いトークン"
@@ -152,6 +202,17 @@ export default function BoardScoreForm({ board, onChange }: Props) {
       <div className="board-total">
         ボード合計: <strong>{score.total}</strong> 点
       </div>
+
+      {countingField && (
+        <BlobCounter
+          label={countingField.label}
+          onApply={(count) => {
+            set(countingField.key, count);
+            setCountingField(null);
+          }}
+          onClose={() => setCountingField(null)}
+        />
+      )}
     </div>
   );
 }
