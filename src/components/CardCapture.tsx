@@ -8,9 +8,15 @@ import { normalizeCardName, stripDigits } from '../lib/normalize';
 import ImageCropper from './ImageCropper';
 
 interface Props {
+  defaultType: CardType;
   onAddMany: (cards: PlayerCard[]) => void;
   onClose: () => void;
 }
+
+const TYPE_LABEL: Record<CardType, string> = {
+  occupation: '職業カード',
+  improvement: '進歩カード',
+};
 
 type Stage = 'capture' | 'cropping' | 'processing' | 'batch' | 'manual';
 
@@ -26,7 +32,7 @@ interface BatchRow {
 
 const MIN_LINE_LENGTH = 2;
 
-export default function CardCapture({ onAddMany, onClose }: Props) {
+export default function CardCapture({ defaultType, onAddMany, onClose }: Props) {
   const [stage, setStage] = useState<Stage>('capture');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [processedPreview, setProcessedPreview] = useState<string | null>(null);
@@ -35,7 +41,7 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const [manualName, setManualName] = useState('');
-  const [manualType, setManualType] = useState<CardType>('occupation');
+  const [manualType, setManualType] = useState<CardType>(defaultType);
   const [manualPoints, setManualPoints] = useState(0);
 
   const cameraFileRef = useRef<HTMLInputElement>(null);
@@ -94,7 +100,7 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
           key: String(i),
           originalText: lm.line,
           name: lm.match ? lm.match.card.displayName : stripDigits(lm.line),
-          type: lm.match ? lm.match.card.type : 'occupation',
+          type: lm.match ? lm.match.card.type : defaultType,
           points: lm.match ? lm.match.card.points : 0,
           matched: Boolean(lm.match),
           include: true,
@@ -167,7 +173,7 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>カードを追加</h2>
+          <h2>{TYPE_LABEL[defaultType]}を追加</h2>
           <button className="btn btn-ghost" onClick={onClose}>
             閉じる
           </button>
@@ -197,6 +203,7 @@ export default function CardCapture({ onAddMany, onClose }: Props) {
               className="btn btn-ghost btn-block"
               onClick={() => {
                 setManualName('');
+                setManualType(defaultType);
                 setStage('manual');
               }}
             >

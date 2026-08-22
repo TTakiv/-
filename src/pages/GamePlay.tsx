@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameDraft } from '../store/useGameDraft';
+import type { CardType } from '../domain/types';
 import BoardScoreForm from '../components/BoardScoreForm';
 import CardList from '../components/CardList';
 import CardCapture from '../components/CardCapture';
@@ -10,7 +11,7 @@ export default function GamePlay() {
   const navigate = useNavigate();
   const { draft, updateBoard, addCard, removeCard, clearDraft } = useGameDraft();
   const [activePlayer, setActivePlayer] = useState(0);
-  const [showCapture, setShowCapture] = useState(false);
+  const [captureType, setCaptureType] = useState<CardType | null>(null);
 
   if (!draft) {
     return (
@@ -24,6 +25,15 @@ export default function GamePlay() {
   }
 
   const player = draft.players[activePlayer];
+
+  const occupationEntries = player.cards
+    .map((card, index) => ({ card, index }))
+    .filter((e) => e.card.type === 'occupation');
+  const improvementEntries = player.cards
+    .map((card, index) => ({ card, index }))
+    .filter((e) => e.card.type === 'improvement');
+  const occupationScore = occupationEntries.reduce((sum, e) => sum + e.card.points, 0);
+  const improvementScore = improvementEntries.reduce((sum, e) => sum + e.card.points, 0);
 
   async function handleFinish() {
     const id = await saveGame({
@@ -61,12 +71,30 @@ export default function GamePlay() {
 
       <section className="section">
         <div className="section-header">
-          <h2>カード ({player.cardsScore}点)</h2>
-          <button className="btn btn-primary" onClick={() => setShowCapture(true)}>
+          <h2>職業カード ({occupationScore}点)</h2>
+          <button className="btn btn-primary" onClick={() => setCaptureType('occupation')}>
             + カード追加
           </button>
         </div>
-        <CardList cards={player.cards} onRemove={(i) => removeCard(activePlayer, i)} />
+        <CardList
+          cards={occupationEntries.map((e) => e.card)}
+          onRemove={(i) => removeCard(activePlayer, occupationEntries[i].index)}
+          showTypeBadge={false}
+        />
+      </section>
+
+      <section className="section">
+        <div className="section-header">
+          <h2>進歩カード ({improvementScore}点)</h2>
+          <button className="btn btn-primary" onClick={() => setCaptureType('improvement')}>
+            + カード追加
+          </button>
+        </div>
+        <CardList
+          cards={improvementEntries.map((e) => e.card)}
+          onRemove={(i) => removeCard(activePlayer, improvementEntries[i].index)}
+          showTypeBadge={false}
+        />
       </section>
 
       <div className="total-summary">
@@ -78,13 +106,14 @@ export default function GamePlay() {
         ゲームを保存する
       </button>
 
-      {showCapture && (
+      {captureType && (
         <CardCapture
+          defaultType={captureType}
           onAddMany={(cards) => {
             cards.forEach((card) => addCard(activePlayer, card));
-            setShowCapture(false);
+            setCaptureType(null);
           }}
-          onClose={() => setShowCapture(false)}
+          onClose={() => setCaptureType(null)}
         />
       )}
     </div>

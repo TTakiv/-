@@ -362,15 +362,6 @@ select {
   color: var(--text-h);
 }
 
-.stepper-photo-btn {
-  font-size: 14px;
-}
-
-.blob-result-stage {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 
 .board-total {
   text-align: right;
