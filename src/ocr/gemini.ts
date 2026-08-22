@@ -61,7 +61,14 @@ export async function recognizeCardsWithGemini(img: HTMLImageElement): Promise<s
     throw new GeminiOcrError('quota', '本日の無料利用枠の上限に達した可能性があります。しばらくしてから再度お試しください。');
   }
   if (!res.ok) {
-    throw new GeminiOcrError('server', `読み取りに失敗しました (status ${res.status})`);
+    let detail = '';
+    try {
+      const body = await res.json();
+      detail = [body.error, body.geminiStatus, body.detail].filter(Boolean).join(' / ').slice(0, 300);
+    } catch {
+      // response wasn't JSON; fall back to just the status code
+    }
+    throw new GeminiOcrError('server', `読み取りに失敗しました (status ${res.status}${detail ? `: ${detail}` : ''})`);
   }
 
   let data: { names?: unknown };
