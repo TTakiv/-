@@ -19,14 +19,21 @@ export class AgricolaDB extends Dexie {
 export const db = new AgricolaDB();
 
 let seeded = false;
+/**
+ * Adds any seedCards not yet present (by matchKey) without touching existing
+ * entries, so re-running after seedCards.ts grows (e.g. a bigger import from
+ * db.agricolajp.dev) fills in the new cards on an existing install instead of
+ * only ever seeding once on a completely empty database.
+ */
 export async function ensureSeeded() {
   if (seeded) return;
   seeded = true;
-  const count = await db.cards.count();
-  if (count > 0) return;
+  const existingKeys = new Set(await db.cards.orderBy('matchKey').keys());
   const now = Date.now();
+  const missing = seedCards.filter((c) => !existingKeys.has(normalizeCardName(c.displayName)));
+  if (missing.length === 0) return;
   await db.cards.bulkAdd(
-    seedCards.map((c) => ({
+    missing.map((c) => ({
       matchKey: normalizeCardName(c.displayName),
       displayName: c.displayName,
       type: c.type,
