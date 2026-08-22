@@ -64,6 +64,14 @@ export function useGameDraft() {
     });
   }, []);
 
+  const updateBoardPhoto = useCallback((playerIndex: number, boardPhoto: string | undefined) => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const players = prev.players.map((p, i) => (i === playerIndex ? { ...p, boardPhoto } : p));
+      return { ...prev, players };
+    });
+  }, []);
+
   const addCard = useCallback((playerIndex: number, card: PlayerCard) => {
     setDraft((prev) => {
       if (!prev) return prev;
@@ -88,5 +96,5 @@ export function useGameDraft() {
 
   const clearDraft = useCallback(() => setDraft(null), []);
 
-  return { draft, startGame, updateBoard, addCard, removeCard, clearDraft };
+  return { draft, startGame, updateBoard, updateBoardPhoto, addCard, removeCard, clearDraft };
 }

@@ -1,13 +1,17 @@
 import { useRef, useState } from 'react';
 import type { BoardInputs, RoomType } from '../domain/types';
 import { calcBoardScore } from '../domain/boardScore';
-import { cropPlain, type CropRect } from '../ocr/preprocess';
+import { cropPlain, blobToDataUrl, fullImageRect, type CropRect } from '../ocr/preprocess';
 import NumberStepper from './NumberStepper';
 import ImageCropper from './ImageCropper';
+
+const PHOTO_MAX_DIMENSION = 1400;
 
 interface Props {
   board: BoardInputs;
   onChange: (board: BoardInputs) => void;
+  photo?: string;
+  onPhotoChange: (photo: string | undefined) => void;
 }
 
 const ROOM_LABEL: Record<RoomType, string> = {
@@ -16,8 +20,7 @@ const ROOM_LABEL: Record<RoomType, string> = {
   stone: '石の家 (2点/部屋)',
 };
 
-export default function BoardScoreForm({ board, onChange }: Props) {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+export default function BoardScoreForm({ board, onChange, photo, onPhotoChange }: Props) {
   const [rawPhotoUrl, setRawPhotoUrl] = useState<string | null>(null);
   const cameraFileRef = useRef<HTMLInputElement>(null);
   const libraryFileRef = useRef<HTMLInputElement>(null);
@@ -34,13 +37,14 @@ export default function BoardScoreForm({ board, onChange }: Props) {
   }
 
   async function handleCropConfirm(rect: CropRect, img: HTMLImageElement) {
-    const blob = await cropPlain(img, rect);
-    setPhotoUrl(URL.createObjectURL(blob));
+    const blob = await cropPlain(img, rect, PHOTO_MAX_DIMENSION);
+    onPhotoChange(await blobToDataUrl(blob));
     setRawPhotoUrl(null);
   }
 
-  function handleCropSkip(img: HTMLImageElement) {
-    setPhotoUrl(img.src);
+  async function handleCropSkip(img: HTMLImageElement) {
+    const blob = await cropPlain(img, fullImageRect(img), PHOTO_MAX_DIMENSION);
+    onPhotoChange(await blobToDataUrl(blob));
     setRawPhotoUrl(null);
   }
 
@@ -66,8 +70,8 @@ export default function BoardScoreForm({ board, onChange }: Props) {
               <button className="btn btn-ghost" onClick={() => libraryFileRef.current?.click()}>
                 🖼️ アルバムから選択
               </button>
-              {photoUrl && (
-                <button className="btn btn-ghost" onClick={() => setRawPhotoUrl(photoUrl)}>
+              {photo && (
+                <button className="btn btn-ghost" onClick={() => setRawPhotoUrl(photo)}>
                   ✂️ 編集
                 </button>
               )}
@@ -81,7 +85,7 @@ export default function BoardScoreForm({ board, onChange }: Props) {
               onChange={handlePhoto}
             />
             <input ref={libraryFileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
-            {photoUrl && <img className="board-photo-preview" src={photoUrl} alt="農場ボード" />}
+            {photo && <img className="board-photo-preview" src={photo} alt="農場ボード" />}
           </>
         )}
         <p className="hint-text">

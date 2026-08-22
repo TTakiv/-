@@ -46,6 +46,9 @@ export default function GameDetail() {
                 <span className="result-name">{p.name}</span>
                 <span className="result-total">{p.totalScore}点</span>
               </div>
+              {p.boardPhoto && (
+                <img className="board-photo-preview" src={p.boardPhoto} alt={`${p.name}の農場ボード`} />
+              )}
               <details>
                 <summary>内訳を見る</summary>
                 <table className="breakdown-table">

@@ -9,7 +9,7 @@ import { saveGame } from '../db/db';
 
 export default function GamePlay() {
   const navigate = useNavigate();
-  const { draft, updateBoard, addCard, removeCard, clearDraft } = useGameDraft();
+  const { draft, updateBoard, updateBoardPhoto, addCard, removeCard, clearDraft } = useGameDraft();
   const [activePlayer, setActivePlayer] = useState(0);
   const [captureType, setCaptureType] = useState<CardType | null>(null);
 
@@ -66,7 +66,12 @@ export default function GamePlay() {
 
       <section className="section">
         <h2>ボード得点</h2>
-        <BoardScoreForm board={player.board} onChange={(b) => updateBoard(activePlayer, b)} />
+        <BoardScoreForm
+          board={player.board}
+          onChange={(b) => updateBoard(activePlayer, b)}
+          photo={player.boardPhoto}
+          onPhotoChange={(p) => updateBoardPhoto(activePlayer, p)}
+        />
       </section>
 
       <section className="section">

@@ -24,12 +24,14 @@ export function fullImageRect(img: HTMLImageElement): CropRect {
 /**
  * Crop to the given rectangle in full color, with no processing beyond the
  * crop itself. Used for the board reference photo, which the user just
- * looks at while entering counts.
+ * looks at while entering counts. Downscales to maxDimension if given, to
+ * keep saved-game records a reasonable size.
  */
-export function cropPlain(img: HTMLImageElement, rect: CropRect): Promise<Blob> {
+export function cropPlain(img: HTMLImageElement, rect: CropRect, maxDimension?: number): Promise<Blob> {
+  const scale = maxDimension ? Math.min(1, maxDimension / Math.max(rect.width, rect.height)) : 1;
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(rect.width));
-  canvas.height = Math.max(1, Math.round(rect.height));
+  canvas.width = Math.max(1, Math.round(rect.width * scale));
+  canvas.height = Math.max(1, Math.round(rect.height * scale));
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, canvas.width, canvas.height);
 
@@ -39,6 +41,16 @@ export function cropPlain(img: HTMLImageElement, rect: CropRect): Promise<Blob> 
       'image/jpeg',
       0.9,
     );
+  });
+}
+
+/** Converts a Blob to a base64 data URL so it can be stored in localStorage/IndexedDB as plain JSON. */
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('画像の変換に失敗しました'));
+    reader.readAsDataURL(blob);
   });
 }
 

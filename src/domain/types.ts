@@ -56,6 +56,7 @@ export interface PlayerResult {
   name: string;
   board: BoardInputs;
   boardScore: number;
+  boardPhoto?: string;
   cards: PlayerCard[];
   cardsScore: number;
   totalScore: number;
