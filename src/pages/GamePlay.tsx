@@ -36,13 +36,18 @@ export default function GamePlay() {
   const improvementScore = improvementEntries.reduce((sum, e) => sum + e.card.points, 0);
 
   async function handleFinish() {
-    const id = await saveGame({
-      date: Date.now(),
-      title: draft!.title,
-      players: draft!.players,
-    });
-    clearDraft();
-    navigate(`/history/${id}`);
+    try {
+      const id = await saveGame({
+        date: Date.now(),
+        title: draft!.title,
+        players: draft!.players,
+      });
+      clearDraft();
+      navigate(`/history/${id}`);
+    } catch (err) {
+      console.error('saveGame failed', err);
+      alert(`保存に失敗しました: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   return (
