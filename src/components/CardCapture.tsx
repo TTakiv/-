@@ -1,11 +1,9 @@
 import { useRef, useState } from 'react';
 import type { CardType, PlayerCard } from '../domain/types';
-import { recognizeImage } from '../ocr/ocr';
+import { recognizeCardsWithGemini, GeminiOcrError } from '../ocr/gemini';
 import { matchEachLine } from '../ocr/cardMatch';
 import { allCards, upsertCard } from '../db/db';
-import { cropAndEnhance, fullImageRect, loadImage, rotateImageBlob, type CropRect } from '../ocr/preprocess';
-import { normalizeCardName, stripDigits } from '../lib/normalize';
-import ImageCropper from './ImageCropper';
+import { loadImage } from '../ocr/preprocess';
 
 interface Props {
   defaultType: CardType;
@@ -18,7 +16,7 @@ const TYPE_LABEL: Record<CardType, string> = {
   improvement: '進歩カード',
 };
 
-type Stage = 'capture' | 'cropping' | 'processing' | 'batch' | 'manual';
+type Stage = 'capture' | 'processing' | 'batch' | 'manual';
 
 interface BatchRow {
   key: string;
@@ -29,13 +27,9 @@ interface BatchRow {
   include: boolean;
 }
 
-const MIN_LINE_LENGTH = 2;
-
 export default function CardCapture({ defaultType, onAddMany, onClose }: Props) {
   const [stage, setStage] = useState<Stage>('capture');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [processedPreview, setProcessedPreview] = useState<string | null>(null);
-  const [ocrLines, setOcrLines] = useState<string[]>([]);
   const [batchRows, setBatchRows] = useState<BatchRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,60 +38,33 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
 
   const cameraFileRef = useRef<HTMLInputElement>(null);
   const libraryFileRef = useRef<HTMLInputElement>(null);
-  const [lastRunArgs, setLastRunArgs] = useState<{ rect: CropRect; img: HTMLImageElement } | null>(null);
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPhotoUrl(URL.createObjectURL(file));
+    const url = URL.createObjectURL(file);
+    setPhotoUrl(url);
     setError(null);
-    setStage('cropping');
-  }
-
-  async function runOcr(rect: CropRect, img: HTMLImageElement, binarize: boolean) {
-    setLastRunArgs({ rect, img });
     setStage('processing');
+
     try {
-      const straightBlob = await cropAndEnhance(img, rect, binarize);
-      let bestBlob = straightBlob;
-      let lines = (await recognizeImage(straightBlob, 'jpn')).lines;
-      let cleanLines = lines.filter((l) => normalizeCardName(l).length >= MIN_LINE_LENGTH);
+      const img = await loadImage(url);
+      const names = await recognizeCardsWithGemini(img);
 
-      // Nothing usable — the crop is very likely sideways/upside down
-      // (a common case when cards are fanned out at an angle). Retry the
-      // same crop rotated 90/180/270 degrees and keep whichever attempt
-      // actually produced readable text.
-      if (cleanLines.length === 0) {
-        const rotatable = await loadImage(URL.createObjectURL(straightBlob));
-        for (const deg of [90, 180, 270] as const) {
-          const rotatedBlob = await rotateImageBlob(rotatable, deg);
-          const rotatedLines = (await recognizeImage(rotatedBlob, 'jpn')).lines;
-          const rotatedClean = rotatedLines.filter((l) => normalizeCardName(l).length >= MIN_LINE_LENGTH);
-          if (rotatedClean.length > cleanLines.length) {
-            bestBlob = rotatedBlob;
-            lines = rotatedLines;
-            cleanLines = rotatedClean;
-          }
-          if (cleanLines.length > 0) break;
-        }
-      }
-
-      setProcessedPreview(URL.createObjectURL(bestBlob));
-      setOcrLines(lines);
-
-      if (cleanLines.length === 0) {
-        setManualName(stripDigits(lines[0] ?? ''));
+      if (names.length === 0) {
+        setError('カード名を読み取れませんでした。手動で入力してください。');
+        setManualName('');
         setStage('manual');
         return;
       }
 
       const cards = await allCards();
-      const lineMatches = matchEachLine(cleanLines, cards);
+      const lineMatches = matchEachLine(names, cards);
       setBatchRows(
         lineMatches.map((lm, i) => ({
           key: String(i),
           originalText: lm.line,
-          name: lm.match ? lm.match.card.displayName : stripDigits(lm.line),
+          name: lm.match ? lm.match.card.displayName : lm.line,
           points: lm.match ? lm.match.card.points : 0,
           matched: Boolean(lm.match),
           include: true,
@@ -106,29 +73,17 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
       setStage('batch');
     } catch (err) {
       console.error(err);
-      setError('文字認識に失敗しました。手動で入力してください。');
+      const message = err instanceof GeminiOcrError ? err.message : '読み取りに失敗しました。手動で入力してください。';
+      setError(message);
       setManualName('');
       setStage('manual');
     }
   }
 
-  function handleCropConfirm(rect: CropRect, img: HTMLImageElement) {
-    runOcr(rect, img, true);
-  }
-
-  function handleCropSkip(img: HTMLImageElement) {
-    runOcr(fullImageRect(img), img, true);
-  }
-
-  function retryCrop() {
+  function retryPhoto() {
     setError(null);
-    setStage('cropping');
-  }
-
-  function retryWithoutBinarize() {
-    if (!lastRunArgs) return;
-    setError(null);
-    runOcr(lastRunArgs.rect, lastRunArgs.img, false);
+    setPhotoUrl(null);
+    setStage('capture');
   }
 
   function updateRow(key: string, patch: Partial<BatchRow>) {
@@ -143,9 +98,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
     const included = batchRows.filter((r) => r.include && r.name.trim());
     if (included.length === 0) return;
     const saved = await Promise.all(
-      included.map((r) =>
-        upsertCard({ displayName: r.name.trim(), type: defaultType, points: r.points }),
-      ),
+      included.map((r) => upsertCard({ displayName: r.name.trim(), type: defaultType, points: r.points })),
     );
     onAddMany(
       saved.map((s) => ({
@@ -185,7 +138,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
               🖼️ アルバムから選択
             </button>
             <p className="hint-text">
-              複数枚のカード名を並べて写しても、まとめて1枚の写真で読み取れます。
+              複数枚のカードを並べて写しても、まとめて1枚の写真で読み取れます。AI (Gemini) がカード名を読み取るため、インターネット接続が必要です。
             </p>
             <input
               ref={cameraFileRef}
@@ -208,21 +161,17 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
           </div>
         )}
 
-        {stage === 'cropping' && photoUrl && (
-          <ImageCropper imageUrl={photoUrl} onConfirm={handleCropConfirm} onSkip={handleCropSkip} />
+        {(stage === 'processing' || stage === 'batch') && photoUrl && (
+          <img className="card-photo-preview" src={photoUrl} alt="撮影したカード" />
         )}
 
-        {(stage === 'processing' || stage === 'batch' || stage === 'manual') && processedPreview && (
-          <img className="card-photo-preview" src={processedPreview} alt="読み取り範囲" />
-        )}
-
-        {stage === 'processing' && <p className="hint-text">文字を読み取っています...</p>}
+        {stage === 'processing' && <p className="hint-text">AIがカード名を読み取っています...</p>}
 
         {stage === 'batch' && (
           <div className="batch-stage">
             {error && <p className="error-text">{error}</p>}
             <p className="hint-text">
-              読み取れた行ごとにカードとして表示しています。名前・得点を確認し、不要な行はチェックを外してください。
+              読み取れたカードごとに一覧表示しています。名前・得点を確認し、不要な行はチェックを外してください。
             </p>
             <ul className="batch-list">
               {batchRows.map((row) => (
@@ -259,11 +208,8 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
                 </li>
               ))}
             </ul>
-            <button className="btn btn-ghost btn-block" onClick={retryWithoutBinarize}>
-              🔁 白黒化せずに読み取り直す
-            </button>
-            <button className="btn btn-ghost btn-block" onClick={retryCrop}>
-              うまく読み取れない・範囲を選び直す
+            <button className="btn btn-ghost btn-block" onClick={retryPhoto}>
+              うまく読み取れない・撮り直す
             </button>
             <button
               className="btn btn-primary btn-block btn-large"
@@ -278,28 +224,9 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
         {stage === 'manual' && (
           <div className="manual-stage">
             {error && <p className="error-text">{error}</p>}
-            {ocrLines.length > 0 && (
-              <div className="ocr-lines">
-                <span className="hint-text">読み取ったテキスト:</span>
-                <ul>
-                  {ocrLines.slice(0, 5).map((l, i) => (
-                    <li key={i}>
-                      <button className="link-btn" onClick={() => setManualName(stripDigits(l))}>
-                        {l}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {lastRunArgs && (
-              <button className="btn btn-ghost btn-block" onClick={retryWithoutBinarize}>
-                🔁 白黒化せずに読み取り直す
-              </button>
-            )}
             {photoUrl && (
-              <button className="btn btn-ghost btn-block" onClick={retryCrop}>
-                範囲を選び直して再読み取り
+              <button className="btn btn-ghost btn-block" onClick={retryPhoto}>
+                撮り直す
               </button>
             )}
             <label className="field">
