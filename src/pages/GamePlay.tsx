@@ -11,7 +11,8 @@ import { saveGame } from '../db/db';
 
 export default function GamePlay() {
   const navigate = useNavigate();
-  const { draft, updateBoard, updateBoardPhoto, addCard, updateCardBonus, removeCard, clearDraft } = useGameDraft();
+  const { draft, updateTitle, updateBoard, updateBoardPhoto, addCard, updateCardBonus, removeCard, clearDraft } =
+    useGameDraft();
   const [activePlayer, setActivePlayer] = useState(0);
   const [captureType, setCaptureType] = useState<CardType | null>(null);
 
@@ -58,7 +59,12 @@ export default function GamePlay() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>{draft.title}</h1>
+        <input
+          className="title-input"
+          value={draft.title}
+          onChange={(e) => updateTitle(e.target.value)}
+          aria-label="ゲームのタイトル"
+        />
         {isEditing && <span className="edit-mode-badge">編集中</span>}
       </header>
 

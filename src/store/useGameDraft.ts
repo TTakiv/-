@@ -60,6 +60,10 @@ export function useGameDraft() {
     setDraft({ id: game.id, date: game.date, title: game.title, players: game.players.map(recompute) });
   }, []);
 
+  const updateTitle = useCallback((title: string) => {
+    setDraft((prev) => (prev ? { ...prev, title } : prev));
+  }, []);
+
   const updateBoard = useCallback((playerIndex: number, board: PlayerResult['board']) => {
     setDraft((prev) => {
       if (!prev) return prev;
@@ -114,5 +118,16 @@ export function useGameDraft() {
 
   const clearDraft = useCallback(() => setDraft(null), []);
 
-  return { draft, startGame, loadGame, updateBoard, updateBoardPhoto, addCard, updateCardBonus, removeCard, clearDraft };
+  return {
+    draft,
+    startGame,
+    loadGame,
+    updateTitle,
+    updateBoard,
+    updateBoardPhoto,
+    addCard,
+    updateCardBonus,
+    removeCard,
+    clearDraft,
+  };
 }

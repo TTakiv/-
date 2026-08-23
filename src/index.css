@@ -86,6 +86,24 @@ select {
   gap: 8px;
 }
 
+.title-input {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-h);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.title-input:hover,
+.title-input:focus {
+  border-color: var(--border);
+  outline: none;
+}
+
 .edit-mode-badge {
   font-size: 12px;
   padding: 3px 8px;
