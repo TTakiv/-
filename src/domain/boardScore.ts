@@ -8,15 +8,21 @@ import type { BoardInputs } from './types';
 type Tier = [min: number, points: number];
 
 function tierLookup(count: number, tiers: Tier[]): number {
-  if (count <= 0) return -1;
-  let points = tiers[0][1];
+  let points = -1;
   for (const [min, pts] of tiers) {
     if (count >= min) points = pts;
   }
   return points;
 }
 
-const FIELDS_PASTURES: Tier[] = [
+const FIELDS: Tier[] = [
+  [2, 1],
+  [3, 2],
+  [4, 3],
+  [5, 4],
+];
+
+const PASTURES: Tier[] = [
   [1, 1],
   [2, 2],
   [3, 3],
@@ -67,8 +73,8 @@ export interface BoardScoreBreakdown {
 }
 
 export function calcBoardScore(input: BoardInputs): BoardScoreBreakdown {
-  const fields = tierLookup(input.fields, FIELDS_PASTURES);
-  const pastures = tierLookup(input.pastures, FIELDS_PASTURES);
+  const fields = tierLookup(input.fields, FIELDS);
+  const pastures = tierLookup(input.pastures, PASTURES);
   const grain = tierLookup(input.grain, GRAIN_SHEEP);
   const vegetables = tierLookup(input.vegetables, VEGETABLES);
   const sheep = tierLookup(input.sheep, GRAIN_SHEEP);
