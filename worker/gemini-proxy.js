@@ -16,6 +16,19 @@
 // Cost safety: as long as the Google Cloud project behind GEMINI_API_KEY has
 // no billing account linked, requests past the free tier simply fail with an
 // error (see the 429/403 handling below) — nothing here can cause a charge.
+//
+// Requests are routed through a Cloudflare AI Gateway instead of calling
+// Google directly, because a Worker can execute from edge locations Google's
+// public Gemini API rejects with "User location is not supported for the API
+// use" (this happens intermittently - Cloudflare picks whichever nearby PoP
+// handles a given request). The AI Gateway proxies from a location Google
+// always accepts. Create a free Gateway at Cloudflare dashboard -> AI ->
+// AI Gateway -> Create Gateway, then fill in your account ID and the
+// gateway's name below (neither is a secret; both are visible in the
+// dashboard URL when the Gateway is open).
+
+const CF_ACCOUNT_ID = 'YOUR_CLOUDFLARE_ACCOUNT_ID';
+const CF_GATEWAY_NAME = 'YOUR_GATEWAY_NAME';
 
 const ALLOWED_ORIGINS = new Set([
   'https://ttakiv.github.io',
@@ -80,7 +93,7 @@ export default {
       return json({ error: 'missing_image' }, 400, headers);
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
+    const geminiUrl = `https://gateway.ai.cloudflare.com/v1/${CF_ACCOUNT_ID}/${CF_GATEWAY_NAME}/google-ai-studio/v1beta/models/${MODEL}:generateContent`;
     const geminiRequest = {
       contents: [
         {
@@ -97,7 +110,7 @@ export default {
     try {
       geminiRes = await fetch(geminiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
         body: JSON.stringify(geminiRequest),
       });
     } catch {
