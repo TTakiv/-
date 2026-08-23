@@ -109,8 +109,9 @@ export default function GameDetail() {
                       <tr key={i}>
                         <td>
                           {c.displayName} ({c.type === 'occupation' ? '職業' : '進歩'})
+                          {Boolean(c.bonusPoints) && ` [素点${c.points} + ボーナス${c.bonusPoints}]`}
                         </td>
-                        <td>{c.points}</td>
+                        <td>{c.points + (c.bonusPoints ?? 0)}</td>
                       </tr>
                     ))}
                     <tr className="breakdown-subtotal">

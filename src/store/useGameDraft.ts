@@ -11,7 +11,7 @@ export interface GameDraft {
 
 function recompute(player: PlayerResult): PlayerResult {
   const boardScore = calcBoardScore(player.board).total;
-  const cardsScore = player.cards.reduce((sum, c) => sum + c.points, 0);
+  const cardsScore = player.cards.reduce((sum, c) => sum + c.points + (c.bonusPoints ?? 0), 0);
   return { ...player, boardScore, cardsScore, totalScore: boardScore + cardsScore };
 }
 
@@ -82,6 +82,18 @@ export function useGameDraft() {
     });
   }, []);
 
+  const updateCardBonus = useCallback((playerIndex: number, cardIndex: number, bonusPoints: number) => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const players = prev.players.map((p, i) =>
+        i === playerIndex
+          ? recompute({ ...p, cards: p.cards.map((c, ci) => (ci === cardIndex ? { ...c, bonusPoints } : c)) })
+          : p,
+      );
+      return { ...prev, players };
+    });
+  }, []);
+
   const removeCard = useCallback((playerIndex: number, cardIndex: number) => {
     setDraft((prev) => {
       if (!prev) return prev;
@@ -96,5 +108,5 @@ export function useGameDraft() {
 
   const clearDraft = useCallback(() => setDraft(null), []);
 
-  return { draft, startGame, updateBoard, updateBoardPhoto, addCard, removeCard, clearDraft };
+  return { draft, startGame, updateBoard, updateBoardPhoto, addCard, updateCardBonus, removeCard, clearDraft };
 }

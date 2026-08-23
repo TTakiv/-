@@ -11,7 +11,7 @@ import { saveGame } from '../db/db';
 
 export default function GamePlay() {
   const navigate = useNavigate();
-  const { draft, updateBoard, updateBoardPhoto, addCard, removeCard, clearDraft } = useGameDraft();
+  const { draft, updateBoard, updateBoardPhoto, addCard, updateCardBonus, removeCard, clearDraft } = useGameDraft();
   const [activePlayer, setActivePlayer] = useState(0);
   const [captureType, setCaptureType] = useState<CardType | null>(null);
 
@@ -34,8 +34,8 @@ export default function GamePlay() {
   const improvementEntries = player.cards
     .map((card, index) => ({ card, index }))
     .filter((e) => e.card.type === 'improvement');
-  const occupationScore = occupationEntries.reduce((sum, e) => sum + e.card.points, 0);
-  const improvementScore = improvementEntries.reduce((sum, e) => sum + e.card.points, 0);
+  const occupationScore = occupationEntries.reduce((sum, e) => sum + e.card.points + (e.card.bonusPoints ?? 0), 0);
+  const improvementScore = improvementEntries.reduce((sum, e) => sum + e.card.points + (e.card.bonusPoints ?? 0), 0);
 
   async function handleFinish() {
     try {
@@ -93,6 +93,7 @@ export default function GamePlay() {
         <CardList
           cards={occupationEntries.map((e) => e.card)}
           onRemove={(i) => removeCard(activePlayer, occupationEntries[i].index)}
+          onBonusChange={(i, bonus) => updateCardBonus(activePlayer, occupationEntries[i].index, bonus)}
           showTypeBadge={false}
         />
       </section>
@@ -107,6 +108,7 @@ export default function GamePlay() {
         <CardList
           cards={improvementEntries.map((e) => e.card)}
           onRemove={(i) => removeCard(activePlayer, improvementEntries[i].index)}
+          onBonusChange={(i, bonus) => updateCardBonus(activePlayer, improvementEntries[i].index, bonus)}
           showTypeBadge={false}
         />
       </section>

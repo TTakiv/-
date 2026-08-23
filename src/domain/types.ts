@@ -50,6 +50,7 @@ export interface PlayerCard {
   displayName: string;
   type: CardType;
   points: number;
+  bonusPoints?: number;
   photo?: string;
 }
 

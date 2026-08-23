@@ -25,6 +25,7 @@ interface BatchRow {
   originalText: string;
   name: string;
   points: number;
+  bonusPoints: number;
   matched: boolean;
   include: boolean;
 }
@@ -38,6 +39,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
 
   const [manualName, setManualName] = useState('');
   const [manualPoints, setManualPoints] = useState(0);
+  const [manualBonusPoints, setManualBonusPoints] = useState(0);
 
   const cameraFileRef = useRef<HTMLInputElement>(null);
   const libraryFileRef = useRef<HTMLInputElement>(null);
@@ -60,6 +62,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
       if (names.length === 0) {
         setError('カード名を読み取れませんでした。手動で入力してください。');
         setManualName('');
+        setManualBonusPoints(0);
         setStage('manual');
         return;
       }
@@ -72,6 +75,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
           originalText: lm.line,
           name: lm.match ? lm.match.card.displayName : lm.line,
           points: lm.match ? lm.match.card.points : 0,
+          bonusPoints: 0,
           matched: Boolean(lm.match),
           include: true,
         })),
@@ -82,6 +86,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
       const message = err instanceof GeminiOcrError ? err.message : '読み取りに失敗しました。手動で入力してください。';
       setError(message);
       setManualName('');
+      setManualBonusPoints(0);
       setStage('manual');
     }
   }
@@ -108,11 +113,12 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
       included.map((r) => upsertCard({ displayName: r.name.trim(), type: defaultType, points: r.points })),
     );
     onAddMany(
-      saved.map((s) => ({
+      saved.map((s, i) => ({
         cardId: s.id,
         displayName: s.displayName,
         type: s.type,
         points: s.points,
+        bonusPoints: included[i].bonusPoints || undefined,
         photo: photoDataUrl ?? undefined,
       })),
     );
@@ -128,6 +134,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
         displayName: saved.displayName,
         type: saved.type,
         points: saved.points,
+        bonusPoints: manualBonusPoints || undefined,
         photo: photoDataUrl ?? undefined,
       },
     ]);
@@ -169,6 +176,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
               className="btn btn-ghost btn-block"
               onClick={() => {
                 setManualName('');
+                setManualBonusPoints(0);
                 setStage('manual');
               }}
             >
@@ -213,13 +221,26 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
                       onChange={(e) => updateRow(row.key, { name: e.target.value })}
                       disabled={!row.include}
                     />
-                    <input
-                      type="number"
-                      className="batch-points-input"
-                      value={row.points}
-                      onChange={(e) => updateRow(row.key, { points: Number(e.target.value) || 0 })}
-                      disabled={!row.include}
-                    />
+                    <div className="batch-field-group">
+                      <span className="batch-field-label">素点</span>
+                      <input
+                        type="number"
+                        className="batch-points-input"
+                        value={row.points}
+                        onChange={(e) => updateRow(row.key, { points: Number(e.target.value) || 0 })}
+                        disabled={!row.include}
+                      />
+                    </div>
+                    <div className="batch-field-group">
+                      <span className="batch-field-label">ボーナス</span>
+                      <input
+                        type="number"
+                        className="batch-points-input"
+                        value={row.bonusPoints}
+                        onChange={(e) => updateRow(row.key, { bonusPoints: Number(e.target.value) || 0 })}
+                        disabled={!row.include}
+                      />
+                    </div>
                   </div>
                 </li>
               ))}
@@ -250,15 +271,23 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
               <input value={manualName} onChange={(e) => setManualName(e.target.value)} />
             </label>
             <label className="field">
-              <span>得点</span>
+              <span>素点</span>
               <input
                 type="number"
                 value={manualPoints}
                 onChange={(e) => setManualPoints(Number(e.target.value) || 0)}
               />
             </label>
+            <label className="field">
+              <span>状況によるボーナス点数(あれば)</span>
+              <input
+                type="number"
+                value={manualBonusPoints}
+                onChange={(e) => setManualBonusPoints(Number(e.target.value) || 0)}
+              />
+            </label>
             <p className="hint-text">
-              ここで入力した得点はカード名と一緒に保存され、次回から自動で読み込まれます。
+              素点はカード名と一緒に保存され、次回から自動で読み込まれます。ボーナス点数はこのカードだけに適用され、カード一覧からいつでも変更できます。
             </p>
             <button className="btn btn-primary btn-block" onClick={saveManual} disabled={!manualName.trim()}>
               追加して記憶する
