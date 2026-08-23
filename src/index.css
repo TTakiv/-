@@ -406,19 +406,23 @@ select {
   color: var(--text-h);
 }
 
-.card-thumb {
-  width: 36px;
-  height: 36px;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  flex: none;
+.photo-gallery {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  gap: 8px;
+  -webkit-overflow-scrolling: touch;
 }
 
-.breakdown-card-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.photo-gallery-item {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-alt, #f4f4f4);
 }
 
 .total-summary {

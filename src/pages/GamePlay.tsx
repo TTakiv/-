@@ -5,6 +5,8 @@ import type { CardType } from '../domain/types';
 import BoardScoreForm from '../components/BoardScoreForm';
 import CardList from '../components/CardList';
 import CardCapture from '../components/CardCapture';
+import PhotoGallery from '../components/PhotoGallery';
+import { playerPhotos } from '../lib/playerPhotos';
 import { saveGame } from '../db/db';
 
 export default function GamePlay() {
@@ -68,6 +70,8 @@ export default function GamePlay() {
           </button>
         ))}
       </div>
+
+      <PhotoGallery photos={playerPhotos(player)} />
 
       <section className="section">
         <h2>ボード得点</h2>

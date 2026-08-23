@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { getGame } from '../db/db';
 import type { GameRecord } from '../domain/types';
 import { calcBoardScore } from '../domain/boardScore';
+import PhotoGallery from '../components/PhotoGallery';
+import { playerPhotos } from '../lib/playerPhotos';
 
 export default function GameDetail() {
   const { id } = useParams();
@@ -46,9 +48,7 @@ export default function GameDetail() {
                 <span className="result-name">{p.name}</span>
                 <span className="result-total">{p.totalScore}点</span>
               </div>
-              {p.boardPhoto && (
-                <img className="board-photo-preview" src={p.boardPhoto} alt={`${p.name}の農場ボード`} />
-              )}
+              <PhotoGallery photos={playerPhotos(p)} />
               <details>
                 <summary>内訳を見る</summary>
                 <table className="breakdown-table">
@@ -108,10 +108,7 @@ export default function GameDetail() {
                     {p.cards.map((c, i) => (
                       <tr key={i}>
                         <td>
-                          <span className="breakdown-card-name">
-                            {c.photo && <img className="card-thumb" src={c.photo} alt={c.displayName} />}
-                            {c.displayName} ({c.type === 'occupation' ? '職業' : '進歩'})
-                          </span>
+                          {c.displayName} ({c.type === 'occupation' ? '職業' : '進歩'})
                         </td>
                         <td>{c.points}</td>
                       </tr>
