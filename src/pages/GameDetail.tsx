@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getGame } from '../db/db';
 import type { GameRecord } from '../domain/types';
 import { calcBoardScore } from '../domain/boardScore';
 import PhotoGallery from '../components/PhotoGallery';
 import { playerPhotos } from '../lib/playerPhotos';
+import { useGameDraft } from '../store/useGameDraft';
 
 export default function GameDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { draft, loadGame } = useGameDraft();
   const [game, setGame] = useState<GameRecord | null | undefined>(undefined);
 
   useEffect(() => {
@@ -29,13 +32,27 @@ export default function GameDetail() {
 
   const ranked = [...game.players].sort((a, b) => b.totalScore - a.totalScore);
 
+  function handleEdit() {
+    if (draft && draft.id !== game!.id) {
+      const ok = confirm('入力中の別のゲームがあります。編集を始めると、その内容は失われます。よろしいですか?');
+      if (!ok) return;
+    }
+    loadGame(game!);
+    navigate('/play');
+  }
+
   return (
     <div className="page">
       <header className="page-header">
         <h1>{game.title}</h1>
-        <Link className="btn btn-ghost" to="/">
-          ホームに戻る
-        </Link>
+        <div className="page-header-actions">
+          <button className="btn btn-ghost" onClick={handleEdit}>
+            編集する
+          </button>
+          <Link className="btn btn-ghost" to="/">
+            ホームに戻る
+          </Link>
+        </div>
       </header>
 
       <div className="result-list">

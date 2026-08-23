@@ -81,6 +81,20 @@ select {
   flex-wrap: wrap;
 }
 
+.page-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-mode-badge {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .section {
   background: var(--surface);
   border: 1px solid var(--border);

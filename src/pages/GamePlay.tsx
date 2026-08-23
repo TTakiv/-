@@ -37,10 +37,13 @@ export default function GamePlay() {
   const occupationScore = occupationEntries.reduce((sum, e) => sum + e.card.points + (e.card.bonusPoints ?? 0), 0);
   const improvementScore = improvementEntries.reduce((sum, e) => sum + e.card.points + (e.card.bonusPoints ?? 0), 0);
 
+  const isEditing = draft.id !== undefined;
+
   async function handleFinish() {
     try {
       const id = await saveGame({
-        date: Date.now(),
+        id: draft!.id,
+        date: draft!.date ?? Date.now(),
         title: draft!.title,
         players: draft!.players,
       });
@@ -56,6 +59,7 @@ export default function GamePlay() {
     <div className="page">
       <header className="page-header">
         <h1>{draft.title}</h1>
+        {isEditing && <span className="edit-mode-badge">編集中</span>}
       </header>
 
       <div className="player-tabs">
@@ -119,7 +123,7 @@ export default function GamePlay() {
       </div>
 
       <button className="btn btn-primary btn-block btn-large" onClick={handleFinish}>
-        ゲームを保存する
+        {isEditing ? '変更を保存する' : 'ゲームを保存する'}
       </button>
 
       {captureType && (

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { emptyBoardInputs, type PlayerCard, type PlayerResult } from '../domain/types';
+import { emptyBoardInputs, type GameRecord, type PlayerCard, type PlayerResult } from '../domain/types';
 import { calcBoardScore } from '../domain/boardScore';
 
 const STORAGE_KEY = 'agricola-draft-v1';
 
 export interface GameDraft {
+  id?: number;
+  date?: number;
   title: string;
   players: PlayerResult[];
 }
@@ -52,6 +54,10 @@ export function useGameDraft() {
       }),
     );
     setDraft({ title, players });
+  }, []);
+
+  const loadGame = useCallback((game: GameRecord) => {
+    setDraft({ id: game.id, date: game.date, title: game.title, players: game.players.map(recompute) });
   }, []);
 
   const updateBoard = useCallback((playerIndex: number, board: PlayerResult['board']) => {
@@ -108,5 +114,5 @@ export function useGameDraft() {
 
   const clearDraft = useCallback(() => setDraft(null), []);
 
-  return { draft, startGame, updateBoard, updateBoardPhoto, addCard, updateCardBonus, removeCard, clearDraft };
+  return { draft, startGame, loadGame, updateBoard, updateBoardPhoto, addCard, updateCardBonus, removeCard, clearDraft };
 }
