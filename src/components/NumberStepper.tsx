@@ -28,7 +28,7 @@ export default function NumberStepper({ label, value, onChange, min = 0, points 
         </button>
         <input
           type="number"
-          value={value}
+          value={value === 0 ? '' : value}
           min={min}
           onChange={(e) => onChange(Math.max(min, Number(e.target.value) || 0))}
         />

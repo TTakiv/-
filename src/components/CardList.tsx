@@ -32,7 +32,7 @@ export default function CardList({ cards, onRemove, onBonusChange, showTypeBadge
             <input
               type="number"
               className="card-bonus-input"
-              value={c.bonusPoints ?? 0}
+              value={c.bonusPoints ? c.bonusPoints : ''}
               onChange={(e) => onBonusChange(i, Number(e.target.value) || 0)}
             />
             {Boolean(c.bonusPoints) && (

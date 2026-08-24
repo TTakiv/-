@@ -226,7 +226,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
                       <input
                         type="number"
                         className="batch-points-input"
-                        value={row.points}
+                        value={row.points === 0 ? '' : row.points}
                         onChange={(e) => updateRow(row.key, { points: Number(e.target.value) || 0 })}
                         disabled={!row.include}
                       />
@@ -236,7 +236,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
                       <input
                         type="number"
                         className="batch-points-input"
-                        value={row.bonusPoints}
+                        value={row.bonusPoints === 0 ? '' : row.bonusPoints}
                         onChange={(e) => updateRow(row.key, { bonusPoints: Number(e.target.value) || 0 })}
                         disabled={!row.include}
                       />
@@ -274,7 +274,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
               <span>素点</span>
               <input
                 type="number"
-                value={manualPoints}
+                value={manualPoints === 0 ? '' : manualPoints}
                 onChange={(e) => setManualPoints(Number(e.target.value) || 0)}
               />
             </label>
@@ -282,7 +282,7 @@ export default function CardCapture({ defaultType, onAddMany, onClose }: Props) 
               <span>状況によるボーナス点数(あれば)</span>
               <input
                 type="number"
-                value={manualBonusPoints}
+                value={manualBonusPoints === 0 ? '' : manualBonusPoints}
                 onChange={(e) => setManualBonusPoints(Number(e.target.value) || 0)}
               />
             </label>
