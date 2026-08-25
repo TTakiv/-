@@ -86,6 +86,12 @@ select {
   gap: 8px;
 }
 
+.share-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .title-input {
   font-size: 22px;
   font-weight: 600;

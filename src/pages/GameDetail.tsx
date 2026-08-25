@@ -6,12 +6,14 @@ import { calcBoardScore } from '../domain/boardScore';
 import PhotoGallery from '../components/PhotoGallery';
 import { playerPhotos } from '../lib/playerPhotos';
 import { useGameDraft } from '../store/useGameDraft';
+import { buildShareText, shareToX, canSharePhoto, sharePhoto } from '../lib/shareGame';
 
 export default function GameDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { draft, loadGame } = useGameDraft();
   const [game, setGame] = useState<GameRecord | null | undefined>(undefined);
+  const [sharingPhoto, setSharingPhoto] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -41,6 +43,23 @@ export default function GameDetail() {
     navigate('/play');
   }
 
+  function handleShareX() {
+    shareToX(buildShareText(game!));
+  }
+
+  async function handleSharePhotoShare() {
+    setSharingPhoto(true);
+    try {
+      await sharePhoto(game!, buildShareText(game!));
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      console.error('share failed', err);
+      alert('共有に失敗しました。');
+    } finally {
+      setSharingPhoto(false);
+    }
+  }
+
   return (
     <div className="page">
       <header className="page-header">
@@ -54,6 +73,17 @@ export default function GameDetail() {
           </Link>
         </div>
       </header>
+
+      <div className="share-actions">
+        <button className="btn btn-ghost" onClick={handleShareX}>
+          𝕏でシェア
+        </button>
+        {canSharePhoto() && (
+          <button className="btn btn-ghost" onClick={handleSharePhotoShare} disabled={sharingPhoto}>
+            写真と一緒に共有
+          </button>
+        )}
+      </div>
 
       <div className="result-list">
         {ranked.map((p, rank) => {
