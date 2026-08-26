@@ -16,14 +16,14 @@ export function shareToX(text: string): void {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-/** First available photo among the game's players (highest-scoring player first), if any. */
-function pickRepresentativePhoto(game: GameRecord): string | undefined {
+/** All photos (board + every card) of the first player that has any, highest-scoring player first. */
+function pickRepresentativePhotos(game: GameRecord): string[] {
   const ranked = [...game.players].sort((a, b) => b.totalScore - a.totalScore);
   for (const p of ranked) {
     const photos = playerPhotos(p);
-    if (photos.length > 0) return photos[0];
+    if (photos.length > 0) return photos;
   }
-  return undefined;
+  return [];
 }
 
 async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
@@ -43,13 +43,14 @@ export function canSharePhoto(): boolean {
   }
 }
 
-/** Share via the OS share sheet, including a representative photo when the game has one. */
+/** Share via the OS share sheet, including all of a representative player's photos (board + cards) when available. */
 export async function sharePhoto(game: GameRecord, text: string): Promise<void> {
-  const photo = pickRepresentativePhoto(game);
+  const photos = pickRepresentativePhotos(game);
   const shareData: ShareData = { text };
-  if (photo) {
-    const file = await dataUrlToFile(photo, 'agricola.jpg');
-    shareData.files = [file];
+  if (photos.length > 0) {
+    const files = await Promise.all(photos.map((p, i) => dataUrlToFile(p, `agricola-${i + 1}.jpg`)));
+    // Some share targets only accept a single file; fall back to just the first one.
+    shareData.files = navigator.canShare({ files }) ? files : [files[0]];
   }
   await navigator.share(shareData);
 }
