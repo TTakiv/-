@@ -7,11 +7,6 @@ export function buildShareText(game: GameRecord): string {
   return `${game.players.length}人戦 ${top.totalScore}点`;
 }
 
-export function shareToX(text: string): void {
-  const url = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
-  window.open(url, '_blank', 'noopener,noreferrer');
-}
-
 /** All photos (board + every card) of the first player that has any, highest-scoring player first. */
 function pickRepresentativePhotos(game: GameRecord): string[] {
   const ranked = [...game.players].sort((a, b) => b.totalScore - a.totalScore);

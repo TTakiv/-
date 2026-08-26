@@ -6,7 +6,7 @@ import { calcBoardScore } from '../domain/boardScore';
 import PhotoGallery from '../components/PhotoGallery';
 import { playerPhotos } from '../lib/playerPhotos';
 import { useGameDraft } from '../store/useGameDraft';
-import { buildShareText, shareToX, canSharePhoto, sharePhoto } from '../lib/shareGame';
+import { buildShareText, canSharePhoto, sharePhoto } from '../lib/shareGame';
 
 export default function GameDetail() {
   const { id } = useParams();
@@ -43,10 +43,6 @@ export default function GameDetail() {
     navigate('/play');
   }
 
-  function handleShareX() {
-    shareToX(buildShareText(game!));
-  }
-
   async function handleSharePhotoShare() {
     setSharingPhoto(true);
     try {
@@ -74,16 +70,13 @@ export default function GameDetail() {
         </div>
       </header>
 
-      <div className="share-actions">
-        <button className="btn btn-ghost" onClick={handleShareX}>
-          𝕏でシェア
-        </button>
-        {canSharePhoto() && (
+      {canSharePhoto() && (
+        <div className="share-actions">
           <button className="btn btn-ghost" onClick={handleSharePhotoShare} disabled={sharingPhoto}>
             写真と一緒に共有
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="result-list">
         {ranked.map((p, rank) => {
