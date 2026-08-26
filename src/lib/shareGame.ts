@@ -4,7 +4,7 @@ import { playerPhotos } from './playerPhotos';
 export function buildShareText(game: GameRecord): string {
   const ranked = [...game.players].sort((a, b) => b.totalScore - a.totalScore);
   const top = ranked[0];
-  return `${game.players.length}人戦 ${top.totalScore}点で`;
+  return `${game.players.length}人戦 ${top.totalScore}点`;
 }
 
 export function shareToX(text: string): void {
