@@ -3,12 +3,8 @@ import { playerPhotos } from './playerPhotos';
 
 export function buildShareText(game: GameRecord): string {
   const ranked = [...game.players].sort((a, b) => b.totalScore - a.totalScore);
-  const lines = [
-    `${game.title} のアグリコラの結果`,
-    ...ranked.map((p, i) => `${i + 1}位: ${p.name} ${p.totalScore}点`),
-    '#アグリコラ',
-  ];
-  return lines.join('\n');
+  const top = ranked[0];
+  return `${game.players.length}人戦 ${top.totalScore}点で`;
 }
 
 export function shareToX(text: string): void {
