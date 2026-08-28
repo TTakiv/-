@@ -12,6 +12,7 @@ function formatDate(ts: number): string {
 export default function Home() {
   const [games, setGames] = useState<GameRecord[] | null>(null);
   const [importing, setImporting] = useState(false);
+  const [showBackupMenu, setShowBackupMenu] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function Home() {
       alert(err instanceof Error ? err.message : '読み込みに失敗しました。');
     } finally {
       setImporting(false);
+      setShowBackupMenu(false);
     }
   }
 
@@ -45,26 +47,49 @@ export default function Home() {
     <div className="page">
       <header className="page-header">
         <h1>アグリコラ スコア記録</h1>
-        <Link className="btn btn-primary" to="/new">
-          + 新しいゲーム
-        </Link>
+        <div className="page-header-actions">
+          <button className="btn btn-ghost" onClick={() => setShowBackupMenu(true)}>
+            バックアップ
+          </button>
+          <Link className="btn btn-primary" to="/new">
+            + 新しいゲーム
+          </Link>
+        </div>
       </header>
 
-      <div className="backup-actions">
-        <button className="btn btn-ghost" onClick={() => exportBackup()}>
-          バックアップを書き出す
-        </button>
-        <button className="btn btn-ghost" onClick={() => importFileRef.current?.click()} disabled={importing}>
-          バックアップから復元する
-        </button>
-        <input
-          ref={importFileRef}
-          type="file"
-          accept="application/json"
-          hidden
-          onChange={handleImportFile}
-        />
-      </div>
+      <input ref={importFileRef} type="file" accept="application/json" hidden onChange={handleImportFile} />
+
+      {showBackupMenu && (
+        <div className="modal-backdrop" onClick={() => setShowBackupMenu(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>バックアップ</h2>
+              <button className="btn btn-ghost" onClick={() => setShowBackupMenu(false)}>
+                閉じる
+              </button>
+            </div>
+            <p className="hint-text">
+              ゲーム記録とカードのデータをファイルに書き出したり、書き出したファイルから復元したりできます。端末を変更する際にご利用ください。
+            </p>
+            <button
+              className="btn btn-primary btn-block"
+              onClick={() => {
+                exportBackup();
+                setShowBackupMenu(false);
+              }}
+            >
+              バックアップを書き出す
+            </button>
+            <button
+              className="btn btn-ghost btn-block"
+              onClick={() => importFileRef.current?.click()}
+              disabled={importing}
+            >
+              バックアップから復元する
+            </button>
+          </div>
+        </div>
+      )}
 
       {games === null && <p>読み込み中...</p>}
       {games !== null && games.length === 0 && (

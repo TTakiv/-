@@ -92,13 +92,6 @@ select {
   flex-wrap: wrap;
 }
 
-.backup-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
 .title-input {
   font-size: 22px;
   font-weight: 600;
