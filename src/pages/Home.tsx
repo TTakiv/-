@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listGames, deleteGame } from '../db/db';
 import type { GameRecord } from '../domain/types';
+import { exportBackup, importBackup } from '../lib/backup';
 
 function formatDate(ts: number): string {
   const d = new Date(ts);
@@ -10,6 +11,8 @@ function formatDate(ts: number): string {
 
 export default function Home() {
   const [games, setGames] = useState<GameRecord[] | null>(null);
+  const [importing, setImporting] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     listGames().then(setGames);
@@ -22,6 +25,22 @@ export default function Home() {
     setGames(await listGames());
   }
 
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setImporting(true);
+    try {
+      const { addedGames, addedCards } = await importBackup(file);
+      alert(`ゲーム記録${addedGames}件、カード${addedCards}件を追加しました。`);
+      setGames(await listGames());
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '読み込みに失敗しました。');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div className="page">
       <header className="page-header">
@@ -30,6 +49,22 @@ export default function Home() {
           + 新しいゲーム
         </Link>
       </header>
+
+      <div className="backup-actions">
+        <button className="btn btn-ghost" onClick={() => exportBackup()}>
+          バックアップを書き出す
+        </button>
+        <button className="btn btn-ghost" onClick={() => importFileRef.current?.click()} disabled={importing}>
+          バックアップから復元する
+        </button>
+        <input
+          ref={importFileRef}
+          type="file"
+          accept="application/json"
+          hidden
+          onChange={handleImportFile}
+        />
+      </div>
 
       {games === null && <p>読み込み中...</p>}
       {games !== null && games.length === 0 && (
