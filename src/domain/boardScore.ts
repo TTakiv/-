@@ -43,11 +43,18 @@ const VEGETABLES: Tier[] = [
   [4, 4],
 ];
 
-const BOAR_CATTLE: Tier[] = [
+const WILD_BOAR: Tier[] = [
   [1, 1],
   [3, 2],
   [5, 3],
   [7, 4],
+];
+
+const CATTLE: Tier[] = [
+  [1, 1],
+  [2, 2],
+  [4, 3],
+  [6, 4],
 ];
 
 const ROOM_POINTS: Record<BoardInputs['roomType'], number> = {
@@ -78,8 +85,8 @@ export function calcBoardScore(input: BoardInputs): BoardScoreBreakdown {
   const grain = tierLookup(input.grain, GRAIN_SHEEP);
   const vegetables = tierLookup(input.vegetables, VEGETABLES);
   const sheep = tierLookup(input.sheep, GRAIN_SHEEP);
-  const wildBoar = tierLookup(input.wildBoar, BOAR_CATTLE);
-  const cattle = tierLookup(input.cattle, BOAR_CATTLE);
+  const wildBoar = tierLookup(input.wildBoar, WILD_BOAR);
+  const cattle = tierLookup(input.cattle, CATTLE);
   const unusedSpaces = -Math.max(0, input.unusedSpaces);
   const fencedStables = Math.max(0, input.fencedStables) * 1;
   const rooms = Math.max(0, input.rooms) * ROOM_POINTS[input.roomType];
