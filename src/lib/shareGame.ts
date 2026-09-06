@@ -12,12 +12,15 @@ export function shareToX(text: string): void {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-/** All photos (board + every card) of the first player that has any, highest-scoring player first. */
+/** X accepts at most 4 images per post, and share targets get pickier the more files they're handed. */
+const MAX_SHARE_PHOTOS = 4;
+
+/** Photos (board + cards) of the first player that has any, highest-scoring player first. */
 function pickRepresentativePhotos(game: GameRecord): string[] {
   const ranked = [...game.players].sort((a, b) => b.totalScore - a.totalScore);
   for (const p of ranked) {
     const photos = playerPhotos(p);
-    if (photos.length > 0) return photos;
+    if (photos.length > 0) return photos.slice(0, MAX_SHARE_PHOTOS);
   }
   return [];
 }
