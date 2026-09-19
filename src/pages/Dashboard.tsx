@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listGames } from '../db/db';
 import type { GameRecord } from '../domain/types';
-import { calcDashboardStats } from '../lib/dashboardStats';
+import { calcDashboardStats, EXCLUDED_IMPROVEMENTS } from '../lib/dashboardStats';
 import type { CardRank } from '../lib/dashboardStats';
 
 function formatScore(value: number | null): string {
@@ -95,6 +95,7 @@ export default function Dashboard() {
       <section className="section">
         <h2>よく使った進歩カード ベスト3</h2>
         <Ranking cards={stats.topImprovements} />
+        <p className="hint-text">{EXCLUDED_IMPROVEMENTS.join('・')}は集計から除いています。</p>
       </section>
     </div>
   );

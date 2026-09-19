@@ -1,4 +1,5 @@
 import type { CardType, GameRecord } from '../domain/types';
+import { normalizeCardName } from './normalize';
 
 export interface CardRank {
   displayName: string;
@@ -24,6 +25,25 @@ const PLAYER_COUNTS = [2, 3, 4, 5];
 
 const RANKING_SIZE = 3;
 
+/**
+ * Staple improvements that nearly every game includes. They would otherwise fill
+ * the ranking, so they are left out of it. Matching is on the normalized full name,
+ * never a substring, so distinct cards that merely share a word — 東洋かまど,
+ * つるべ井戸, 大製陶所, 石の調理場 — still count.
+ */
+export const EXCLUDED_IMPROVEMENTS = [
+  'かまど',
+  '調理場',
+  '井戸',
+  'レンガ窯',
+  '石窯',
+  '家具製作所',
+  '製陶所',
+  'カゴ製作所',
+];
+
+const EXCLUDED_IMPROVEMENT_KEYS = new Set(EXCLUDED_IMPROVEMENTS.map(normalizeCardName));
+
 function average(values: number[]): number | null {
   if (values.length === 0) return null;
   return values.reduce((sum, v) => sum + v, 0) / values.length;
@@ -38,12 +58,13 @@ function scoresOf(games: GameRecord[]): number[] {
 }
 
 /** Most-used cards of one type, most frequent first, ties broken by name so the order is stable. */
-function topCards(games: GameRecord[], type: CardType): CardRank[] {
+function topCards(games: GameRecord[], type: CardType, excludedKeys?: Set<string>): CardRank[] {
   const counts = new Map<string, number>();
   for (const game of games) {
     for (const player of game.players) {
       for (const card of player.cards) {
         if (card.type !== type) continue;
+        if (excludedKeys?.has(normalizeCardName(card.displayName))) continue;
         counts.set(card.displayName, (counts.get(card.displayName) ?? 0) + 1);
       }
     }
@@ -64,6 +85,6 @@ export function calcDashboardStats(games: GameRecord[]): DashboardStats {
       return { playerCount, average: average(scoresOf(matching)), gameCount: matching.length };
     }),
     topOccupations: topCards(games, 'occupation'),
-    topImprovements: topCards(games, 'improvement'),
+    topImprovements: topCards(games, 'improvement', EXCLUDED_IMPROVEMENT_KEYS),
   };
 }
