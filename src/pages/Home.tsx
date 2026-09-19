@@ -51,6 +51,9 @@ export default function Home() {
           <button className="btn btn-ghost" onClick={() => setShowBackupMenu(true)}>
             バックアップ
           </button>
+          <Link className="btn btn-ghost" to="/dashboard">
+            ダッシュボード
+          </Link>
           <Link className="btn btn-primary" to="/new">
             + 新しいゲーム
           </Link>
