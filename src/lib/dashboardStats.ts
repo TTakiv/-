@@ -29,8 +29,12 @@ function average(values: number[]): number | null {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
+/**
+ * One score per game: the first player registered for it. Identifying that player
+ * by position rather than by the default "プレイヤー1" name keeps renamed games counted.
+ */
 function scoresOf(games: GameRecord[]): number[] {
-  return games.flatMap((g) => g.players.map((p) => p.totalScore));
+  return games.flatMap((g) => (g.players.length > 0 ? [g.players[0].totalScore] : []));
 }
 
 /** Most-used cards of one type, most frequent first, ties broken by name so the order is stable. */
@@ -50,7 +54,7 @@ function topCards(games: GameRecord[], type: CardType): CardRank[] {
     .slice(0, RANKING_SIZE);
 }
 
-/** Averages are per player result, not per game, so a 4-player game contributes 4 scores. */
+/** Averages cover only the first player of each game; card rankings cover every player. */
 export function calcDashboardStats(games: GameRecord[]): DashboardStats {
   return {
     gameCount: games.length,

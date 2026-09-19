@@ -82,7 +82,9 @@ export default function Dashboard() {
             ))}
           </tbody>
         </table>
-        <p className="hint-text">平均点は、各ゲームの全プレイヤーの合計点を平均したものです。</p>
+        <p className="hint-text">
+          平均点は、各ゲームで最初に登録したプレイヤー(プレイヤー1)の点数だけを平均したものです。
+        </p>
       </section>
 
       <section className="section">
